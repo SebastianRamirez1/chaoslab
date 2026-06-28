@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/master/spotbugs/etc/findbugsfilter.xsd">
+
+  <!--
+    Exclusiones acotadas y justificadas (directrices §5.8: priorizar por explotabilidad real).
+  -->
+
+  <!--
+    PREDICTABLE_RANDOM: el motor usa un PRNG sembrado A PROPÓSITO. El determinismo
+    (mismo seed -> mismo resultado) es el atributo de Fiabilidad #1 del proyecto; no es
+    un uso de seguridad. Acotado al dominio.
+  -->
+  <Match>
+    <Bug pattern="PREDICTABLE_RANDOM"/>
+    <Package name="~com\.chaoslab\.(domain|application).*"/>
+  </Match>
+
+  <!--
+    EI_EXPOSE_REP / EI_EXPOSE_REP2: ruido típico en value objects/records que llevan
+    colecciones. El dominio las crea inmutables (List.copyOf) en el constructor, así que
+    exponer la referencia es seguro.
+  -->
+  <Match>
+    <Or>
+      <Bug pattern="EI_EXPOSE_REP"/>
+      <Bug pattern="EI_EXPOSE_REP2"/>
+    </Or>
+  </Match>
+
+  <!--
+    Campos @Option/@Parameters de Picocli: se escriben por reflexión, así que SpotBugs los
+    ve "no escritos". Acotado a la CLI.
+  -->
+  <Match>
+    <Package name="~com\.chaoslab\.infrastructure\.cli.*"/>
+    <Or>
+      <Bug pattern="UWF_UNWRITTEN_FIELD"/>
+      <Bug pattern="UWF_NULL_FIELD"/>
+      <Bug pattern="NP_UNWRITTEN_FIELD"/>
+    </Or>
+  </Match>
+
+  <!--
+    DM_EXIT: el main de una app CLI traduce el código de salida del comando a System.exit.
+    Es intencional y solo en la clase de arranque.
+  -->
+  <Match>
+    <Class name="com.chaoslab.ChaosLabApplication"/>
+    <Bug pattern="DM_EXIT"/>
+  </Match>
+
+  <!--
+    CT_CONSTRUCTOR_THROW: validar lanzando en el constructor es la práctica correcta (fail-fast +
+    inmutabilidad). El supuesto "finalizer attack" no aplica: las subclases concretas son final,
+    los finalizers están deprecados en Java 21 y la clase no guarda estado sensible (§5.8:
+    priorizar por explotabilidad real). Acotado a la única clase base no-final.
+  -->
+  <Match>
+    <Class name="com.chaoslab.domain.topology.AbstractComponent"/>
+    <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+  </Match>
+
+
+</FindBugsFilter>
