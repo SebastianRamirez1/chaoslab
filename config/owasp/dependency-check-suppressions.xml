@@ -9,14 +9,16 @@
 
   <suppress>
     <notes><![CDATA[
-      CVE-2026-34479 (CVSS 6.9) afecta a log4j-api. En ChaosLab el logging real es Logback
-      (default de Spring Boot); log4j-api entra solo como fachada vía el puente log4j-to-slf4j
-      y log4j-core NO está en el classpath, que es donde viven los fallos explotables de Log4j.
-      No hay ruta de explotación en este contexto -> no expuesto (VEX: not_affected).
-      2.24.3 es la versión gestionada por Spring Boot 3.5.16. Revisar esta supresión al
-      actualizar Spring Boot por si hay una versión de log4j que la resuelva de raíz.
+      CVE-2026-34479 (CVSS 6.9) afecta a la API de Log4j2 y al puente log4j-to-slf4j. En
+      ChaosLab el logging real es Logback (default de Spring Boot); estos artefactos entran
+      solo como fachada/puente que enruta llamadas Log4j2 hacia SLF4J. log4j-core NO está en
+      el classpath, que es donde viven los fallos explotables de Log4j. No hay ruta de
+      explotación en este contexto -> no expuesto (VEX: not_affected). 2.24.3 es la versión
+      gestionada por Spring Boot 3.5.16. Revisar esta supresión al actualizar Spring Boot por
+      si una versión nueva de log4j la resuelve de raíz. NOTA: deliberadamente NO cubre
+      log4j-core (si alguna vez se añade al classpath, debe volver a evaluarse).
     ]]></notes>
-    <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j-api@.*$</packageUrl>
+    <packageUrl regex="true">^pkg:maven/org\.apache\.logging\.log4j/log4j-(api|to-slf4j)@.*$</packageUrl>
     <cve>CVE-2026-34479</cve>
   </suppress>
 
