@@ -217,6 +217,9 @@
             <version>${owasp.plugin.version}</version>
             <configuration>
               <failBuildOnCVSS>7</failBuildOnCVSS>
+              <suppressionFiles>
+                <suppressionFile>config/owasp/dependency-check-suppressions.xml</suppressionFile>
+              </suppressionFiles>
               <formats>
                 <format>HTML</format>
                 <format>JSON</format>
