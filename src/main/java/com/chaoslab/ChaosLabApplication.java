@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ChaosLabApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(ChaosLabApplication.class, args);
+        // Traduce el código de salida del comando CLI al proceso (vía ExitCodeGenerator).
+        System.exit(SpringApplication.exit(SpringApplication.run(ChaosLabApplication.class, args)));
     }
 }
