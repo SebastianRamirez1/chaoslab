@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.3.5</version>
+    <version>3.5.16</version>
     <relativePath/>
   </parent>
 
@@ -27,7 +27,7 @@
     <spotbugs.plugin.version>4.8.6.4</spotbugs.plugin.version>
     <jacoco.plugin.version>0.8.12</jacoco.plugin.version>
     <toolchains.plugin.version>3.2.0</toolchains.plugin.version>
-    <owasp.plugin.version>10.0.4</owasp.plugin.version>
+    <owasp.plugin.version>12.2.2</owasp.plugin.version>
 
     <!-- Cobertura mínima exigida en el dominio (directrices §4.2: ≥70% en módulos críticos) -->
     <jacoco.domain.line.minimum>0.70</jacoco.domain.line.minimum>

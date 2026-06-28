@@ -15,7 +15,7 @@ y CI con gates de calidad. El motor de simulación se construye en las fases sig
 
 ## Stack
 
-- **Java 21 LTS** + **Spring Boot 3.3** (solo en las capas externas; el dominio es puro)
+- **Java 21 LTS** + **Spring Boot 3.5** (solo en las capas externas; el dominio es puro)
 - Motor de **eventos discretos** propio · **Picocli** (CLI) · **Spring WebSocket/STOMP** (dashboard)
 - **JUnit 5 + AssertJ** · **Checkstyle** · **SpotBugs** · **JaCoCo** · **OWASP Dependency-Check**
 - **GitHub Actions** (CI) · **Docker** (entorno reproducible)
