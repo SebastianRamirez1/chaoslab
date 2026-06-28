@@ -42,6 +42,8 @@ src/main/java/com/chaoslab/
 - JDK 21 (Temurin recomendado). Si tu JDK por defecto es < 21, el build usa **Maven Toolchains**
   para compilar con JDK 21 (ver `~/.m2/toolchains.xml`).
 - Maven 3.9+
+- `.mvn/jvm.config` fuerza `-Djava.net.preferIPv4Stack=true` para evitar fallos de resolución de
+  Maven Central en entornos con IPv6 roto; es inocuo donde IPv6 funciona.
 
 ## Comandos
 
