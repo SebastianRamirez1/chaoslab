@@ -59,5 +59,14 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      # Cachea la base NVD entre corridas: la primera la puebla (lenta), las siguientes
+      # solo descargan el delta (segundos). La clave rota por run para guardar el delta.
+      - name: Cache NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-data-
       - name: OWASP Dependency-Check
         run: mvn -B -ntp -Psecurity verify -DnvdApiKey=${{ secrets.NVD_API_KEY }}

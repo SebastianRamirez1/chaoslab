@@ -220,6 +220,10 @@
               <suppressionFiles>
                 <suppressionFile>config/owasp/dependency-check-suppressions.xml</suppressionFile>
               </suppressionFiles>
+              <!-- Directorio de datos NVD estable para poder cachearlo entre corridas de CI. -->
+              <dataDirectory>${user.home}/.dependency-check-data</dataDirectory>
+              <!-- Espacia las llamadas a la NVD para evitar el rate-limit (429) y sus reintentos. -->
+              <nvdApiDelay>2000</nvdApiDelay>
               <formats>
                 <format>HTML</format>
                 <format>JSON</format>
