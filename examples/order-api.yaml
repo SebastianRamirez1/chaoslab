@@ -36,3 +36,8 @@ connections:
 workload:
   requests_per_second: 200
   duration_seconds: 60
+
+# Fallos predefinidos (también inyectables por CLI con --fault). Se revierten al cumplir su duración.
+faults:
+  - { type: crash,   target: api-1,     at_second: 20, duration_s: 15 }
+  - { type: latency, target: orders-db, at_second: 35, duration_s: 10, extra_ms: 300 }

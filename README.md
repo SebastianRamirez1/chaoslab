@@ -51,6 +51,13 @@ src/main/java/com/chaoslab/
 # Build completo: compila + tests + Checkstyle + SpotBugs + gate de cobertura JaCoCo
 mvn verify
 
+# Correr una simulación (los fallos del YAML se inyectan solos)
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/order-api.yaml
+
+# Inyectar fallos por CLI (repetible): crash:<target>:<atSeg>[:<durSeg>],
+# latency:<target>:<atSeg>:<durSeg>:<extraMs>, partition:<a,b>:<c>:<atSeg>:<durSeg>
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/order-api.yaml --fault crash:api-1:10:20
+
 # Solo lint de estilo
 mvn checkstyle:check
 

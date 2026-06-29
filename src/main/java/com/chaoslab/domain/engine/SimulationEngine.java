@@ -1,8 +1,10 @@
 package com.chaoslab.domain.engine;
 
+import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.metrics.MetricsCollector;
 import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.domain.topology.Component;
+import com.chaoslab.domain.topology.FailureReason;
 import com.chaoslab.domain.topology.Outcome;
 import com.chaoslab.domain.topology.TopologyGraph;
 import java.util.List;
@@ -65,6 +67,8 @@ public final class SimulationEngine {
             case RequestCompleted completed ->
                 metrics.recordCompletion(completed.timestampMillis() - completed.request().entryTimeMillis());
             case RequestFailed failed -> metrics.recordFailure(failed.componentId(), failed.reason());
+            case FaultInjected injected -> onFaultInjected(injected);
+            case FaultCleared cleared -> cleared.fault().clear(topology);
         }
     }
 
@@ -76,20 +80,34 @@ public final class SimulationEngine {
             long departAt = clock.now() + outcome.latencyMillis();
             events.schedule(new RequestDeparted(departAt, arrived.request(), arrived.componentId()));
         } else {
-            events.schedule(
-                new RequestFailed(clock.now(), arrived.request(), arrived.componentId(), outcome.rejectionReason()));
+            events.schedule(new RequestFailed(clock.now(), arrived.request(), arrived.componentId(), outcome.reason()));
         }
     }
 
     private void onDeparted(RequestDeparted departed) {
-        topology.component(departed.componentId()).release();
-        List<String> nextHops = topology.route(departed.componentId());
+        String fromId = departed.componentId();
+        topology.component(fromId).release();
+        List<String> nextHops = topology.route(fromId);
         if (nextHops.isEmpty()) {
             events.schedule(new RequestCompleted(clock.now(), departed.request()));
-        } else {
-            for (String hop : nextHops) {
+            return;
+        }
+        for (String hop : nextHops) {
+            if (topology.isReachable(fromId, hop)) {
                 events.schedule(new RequestArrived(clock.now(), departed.request(), hop));
+            } else {
+                // La partición de red corta la comunicación hacia el destino.
+                events.schedule(new RequestFailed(
+                    clock.now(), departed.request(), hop, FailureReason.NETWORK_PARTITION));
             }
+        }
+    }
+
+    private void onFaultInjected(FaultInjected injected) {
+        Fault fault = injected.fault();
+        fault.apply(topology);
+        if (fault.durationMillis() > 0) {
+            events.schedule(new FaultCleared(clock.now() + fault.durationMillis(), fault));
         }
     }
 }

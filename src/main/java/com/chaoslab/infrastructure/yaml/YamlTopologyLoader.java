@@ -3,6 +3,10 @@ package com.chaoslab.infrastructure.yaml;
 import com.chaoslab.application.LoadedScenario;
 import com.chaoslab.application.TopologyLoader;
 import com.chaoslab.domain.engine.SimulationLimits;
+import com.chaoslab.domain.fault.CrashFault;
+import com.chaoslab.domain.fault.Fault;
+import com.chaoslab.domain.fault.LatencyFault;
+import com.chaoslab.domain.fault.NetworkPartition;
 import com.chaoslab.domain.topology.Component;
 import com.chaoslab.domain.topology.ComponentType;
 import com.chaoslab.domain.topology.Connection;
@@ -18,10 +22,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
@@ -60,7 +66,8 @@ public final class YamlTopologyLoader implements TopologyLoader {
             List<Connection> connections = parseConnections(root);
             Workload workload = parseWorkload(root);
             TopologyGraph topology = TopologyGraph.of(name, components, connections);
-            return new LoadedScenario(topology, workload, seed);
+            List<Fault> faults = parseFaults(root, topology);
+            return new LoadedScenario(topology, workload, seed, faults);
         } catch (IllegalArgumentException e) {
             // Mensajes de invariantes del dominio (rangos, referencias) -> error de validación.
             throw new TopologyValidationException(e.getMessage(), e);
@@ -187,6 +194,64 @@ public final class YamlTopologyLoader implements TopologyLoader {
                 "duration_seconds=" + duration + " supera el máximo " + limits.maxDurationSeconds());
         }
         return new Workload(rps, duration);
+    }
+
+    private List<Fault> parseFaults(Map<String, Object> root, TopologyGraph topology) {
+        Object raw = root.get("faults");
+        if (raw == null) {
+            return List.of();
+        }
+        List<?> list = reqList(raw, "faults");
+        if (list.size() > limits.maxFaults()) {
+            throw new TopologyValidationException(
+                "demasiados fallos: " + list.size() + " (máximo " + limits.maxFaults() + ")");
+        }
+        List<Fault> faults = new ArrayList<>();
+        int index = 0;
+        for (Object element : list) {
+            Map<String, Object> map = asMap(element, "un fallo");
+            String type = reqString(map, "type", "un fallo").toLowerCase(Locale.ROOT);
+            String id = type + "-" + index++;
+            long at = reqInt(map, "at_second", "el fallo '" + id + "'") * 1000L;
+            long duration = optLong(map, "duration_s", 0L) * 1000L;
+            faults.add(switch (type) {
+                case "crash" -> new CrashFault(id, existingTarget(map, id, topology), at, duration);
+                case "latency" -> new LatencyFault(
+                    id, existingTarget(map, id, topology), at, duration,
+                    reqLong(map, "extra_ms", "el fallo '" + id + "'"));
+                case "partition" -> new NetworkPartition(
+                    id, existingGroup(map, "group_a", id, topology),
+                    existingGroup(map, "group_b", id, topology), at, duration);
+                default -> throw new TopologyValidationException(
+                    "tipo de fallo desconocido '" + type + "' (válidos: crash, latency, partition)");
+            });
+        }
+        return faults;
+    }
+
+    private String existingTarget(Map<String, Object> map, String faultId, TopologyGraph topology) {
+        String target = reqString(map, "target", "el fallo '" + faultId + "'");
+        if (!topology.contains(target)) {
+            throw new TopologyValidationException(
+                "el fallo '" + faultId + "' referencia un componente inexistente: '" + target + "'");
+        }
+        return target;
+    }
+
+    private Set<String> existingGroup(Map<String, Object> map, String key, String faultId, TopologyGraph topology) {
+        Set<String> group = new LinkedHashSet<>();
+        String ctx = key + " del fallo '" + faultId + "'";
+        for (Object element : reqList(map.get(key), ctx)) {
+            if (!(element instanceof String memberId)) {
+                throw new TopologyValidationException(ctx + " debe ser una lista de ids");
+            }
+            if (!topology.contains(memberId)) {
+                throw new TopologyValidationException("el fallo '" + faultId
+                    + "' referencia un componente inexistente: '" + memberId + "'");
+            }
+            group.add(memberId);
+        }
+        return group;
     }
 
     // ---- helpers de lectura tipada con mensajes claros ----

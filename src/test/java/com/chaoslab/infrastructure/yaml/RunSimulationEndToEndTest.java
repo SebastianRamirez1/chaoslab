@@ -4,10 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.chaoslab.application.RunSimulationUseCase;
 import com.chaoslab.domain.engine.SimulationLimits;
+import com.chaoslab.domain.fault.CrashFault;
+import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.metrics.SimulationReport;
+import com.chaoslab.domain.topology.FailureReason;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.OptionalLong;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.Test;
@@ -51,8 +55,8 @@ class RunSimulationEndToEndTest {
         RunSimulationUseCase useCase = useCase();
         Path file = topologyFile();
 
-        SimulationReport first = useCase.run(file, OptionalLong.empty());
-        SimulationReport second = useCase.run(file, OptionalLong.empty());
+        SimulationReport first = useCase.run(file, OptionalLong.empty(), List.of());
+        SimulationReport second = useCase.run(file, OptionalLong.empty(), List.of());
 
         assertThat(first.generatedRequests()).isPositive();
         assertThat(first.completedRequests()).isPositive();
@@ -64,9 +68,25 @@ class RunSimulationEndToEndTest {
         RunSimulationUseCase useCase = useCase();
         Path file = topologyFile();
 
-        SimulationReport withSeed1 = useCase.run(file, OptionalLong.of(1L));
-        SimulationReport withSeed2 = useCase.run(file, OptionalLong.of(2L));
+        SimulationReport withSeed1 = useCase.run(file, OptionalLong.of(1L), List.of());
+        SimulationReport withSeed2 = useCase.run(file, OptionalLong.of(2L), List.of());
 
         assertThat(withSeed1).isNotEqualTo(withSeed2);
+    }
+
+    @Test
+    void crashFaultOnOneReplicaProducesFailures() throws IOException {
+        RunSimulationUseCase useCase = useCase();
+        Path file = topologyFile();
+
+        // Sin fallo: todo completa. Con CrashFault en una réplica: ~la mitad falla por CRASH.
+        SimulationReport healthy = useCase.run(file, OptionalLong.empty(), List.of());
+        List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
+        SimulationReport crashed = useCase.run(file, OptionalLong.empty(), crash);
+
+        assertThat(healthy.failedRequests()).isZero();
+        assertThat(crashed.failedRequests()).isPositive();
+        assertThat(crashed.failuresByReason()).containsKey(FailureReason.CRASH);
+        assertThat(crashed.successRate()).isLessThan(healthy.successRate());
     }
 }
