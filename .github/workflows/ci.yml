@@ -45,31 +45,5 @@ jobs:
           name: jacoco-report
           path: target/site/jacoco
 
-  security:
-    name: Security (SCA)
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    # SCA de dependencias (§5.5). Gate DURO: bloquea si hay CVSS >= 7 no justificada en el
-    # archivo de supresiones VEX (config/owasp/dependency-check-suppressions.xml). Usa el
-    # secret NVD_API_KEY para consultar la NVD (§3.1, §5.8).
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-      # Cachea la base NVD entre corridas. Con nvdValidForHours=168 (pom), tras una descarga
-      # las corridas de la semana siguiente NO re-descargan: el escaneo tarda segundos.
-      - name: Cache NVD database
-        uses: actions/cache@v4
-        with:
-          path: ~/.dependency-check-data
-          key: dependency-check-data-${{ github.run_id }}
-          restore-keys: |
-            dependency-check-data-
-      - name: OWASP Dependency-Check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B -ntp -Psecurity verify
+  # La SCA (OWASP Dependency-Check) vive en su propio workflow nocturno (security.yml):
+  # la descarga de la NVD es lenta/rate-limited y no debe bloquear el camino crítico del CI.
