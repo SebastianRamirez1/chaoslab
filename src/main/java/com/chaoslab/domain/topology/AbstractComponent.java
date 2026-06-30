@@ -2,10 +2,11 @@ package com.chaoslab.domain.topology;
 
 /**
  * Base de los componentes con capacidad acotada: lleva la cuenta de requests en vuelo,
- * rechaza cuando se supera la capacidad y registra el pico de concurrencia.
+ * rechaza cuando se supera la capacidad y registra el pico de concurrencia. También aplica
+ * los efectos de los fallos inyectados (caída y latencia extra).
  *
- * <p>La latencia de proceso es fija por tipo (determinista). La aleatoriedad del motor
- * vive solo en la generación del workload, para no romper la Fiabilidad (#1).
+ * <p>La latencia base es fija por tipo (determinista). La aleatoriedad del motor vive solo
+ * en la generación del workload, para no romper la Fiabilidad (#1).
  */
 public abstract class AbstractComponent implements Component {
 
@@ -13,6 +14,8 @@ public abstract class AbstractComponent implements Component {
     private final int capacity;
     private int inFlight;
     private int maxInFlight;
+    private boolean down;
+    private long injectedLatencyMillis;
 
     protected AbstractComponent(String id, int capacity) {
         if (id == null || id.isBlank()) {
@@ -32,14 +35,17 @@ public abstract class AbstractComponent implements Component {
 
     @Override
     public final Outcome receive(Request request) {
+        if (down) {
+            return Outcome.rejected(FailureReason.CRASH);
+        }
         if (inFlight >= capacity) {
-            return Outcome.rejected("capacidad excedida en '" + id + "' (capacidad=" + capacity + ")");
+            return Outcome.rejected(FailureReason.CAPACITY);
         }
         inFlight++;
         if (inFlight > maxInFlight) {
             maxInFlight = inFlight;
         }
-        return Outcome.accepted(latencyMillis());
+        return Outcome.accepted(latencyMillis() + injectedLatencyMillis);
     }
 
     @Override
@@ -51,6 +57,9 @@ public abstract class AbstractComponent implements Component {
 
     @Override
     public Health health() {
+        if (down) {
+            return Health.DOWN;
+        }
         return inFlight >= capacity ? Health.DEGRADED : Health.UP;
     }
 
@@ -59,10 +68,33 @@ public abstract class AbstractComponent implements Component {
         return maxInFlight;
     }
 
+    @Override
+    public final void crash() {
+        this.down = true;
+    }
+
+    @Override
+    public final void recover() {
+        this.down = false;
+    }
+
+    @Override
+    public final void addLatency(long extraMillis) {
+        if (extraMillis < 0) {
+            throw new IllegalArgumentException("la latencia extra debe ser >= 0, fue: " + extraMillis);
+        }
+        this.injectedLatencyMillis += extraMillis;
+    }
+
+    @Override
+    public final void removeLatency(long extraMillis) {
+        this.injectedLatencyMillis = Math.max(0L, this.injectedLatencyMillis - extraMillis);
+    }
+
     protected final int capacity() {
         return capacity;
     }
 
-    /** Latencia de proceso del componente, en milisegundos. */
+    /** Latencia base de proceso del componente, en milisegundos. */
     protected abstract long latencyMillis();
 }

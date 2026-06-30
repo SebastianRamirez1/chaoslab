@@ -25,7 +25,39 @@ class ComponentTest {
         assertThat(first.latencyMillis()).isEqualTo(50L);
         assertThat(second.accepted()).isTrue();
         assertThat(third.accepted()).isFalse();
-        assertThat(third.rejectionReason()).contains("capacidad");
+        assertThat(third.reason()).isEqualTo(FailureReason.CAPACITY);
+    }
+
+    @Test
+    void crashedComponentRejectsEverythingAndReportsDown() {
+        Service service = new Service("svc", 10, 50L);
+        service.crash();
+
+        Outcome outcome = service.receive(request(0));
+
+        assertThat(outcome.accepted()).isFalse();
+        assertThat(outcome.reason()).isEqualTo(FailureReason.CRASH);
+        assertThat(service.health()).isEqualTo(Health.DOWN);
+    }
+
+    @Test
+    void recoverRestoresACrashedComponent() {
+        Service service = new Service("svc", 10, 50L);
+        service.crash();
+        service.recover();
+
+        assertThat(service.receive(request(0)).accepted()).isTrue();
+        assertThat(service.health()).isEqualTo(Health.UP);
+    }
+
+    @Test
+    void injectedLatencyAddsToProcessingTime() {
+        Service service = new Service("svc", 10, 50L);
+        service.addLatency(500L);
+        assertThat(service.receive(request(0)).latencyMillis()).isEqualTo(550L);
+
+        service.removeLatency(500L);
+        assertThat(service.receive(request(1)).latencyMillis()).isEqualTo(50L);
     }
 
     @Test

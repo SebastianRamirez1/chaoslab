@@ -1,8 +1,10 @@
 package com.chaoslab.domain.metrics;
 
 import com.chaoslab.domain.topology.Component;
+import com.chaoslab.domain.topology.FailureReason;
 import com.chaoslab.domain.topology.TopologyGraph;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,16 +22,18 @@ public final class MetricsCollector {
     private long failed;
     private final List<Long> latencies = new ArrayList<>();
     private final Map<String, long[]> perComponent = new LinkedHashMap<>();
+    private final Map<FailureReason, Long> failuresByReason = new EnumMap<>(FailureReason.class);
 
     /** Registra que un request llegó a un componente. */
     public void recordArrival(String componentId) {
         counters(componentId)[ARRIVED]++;
     }
 
-    /** Registra que un componente rechazó un request. */
-    public void recordFailure(String componentId, String reason) {
+    /** Registra que un request falló en un componente, con su causa. */
+    public void recordFailure(String componentId, FailureReason reason) {
         failed++;
         counters(componentId)[REJECTED]++;
+        failuresByReason.merge(reason, 1L, Long::sum);
     }
 
     /** Registra que un request completó su recorrido con la latencia extremo a extremo dada. */
@@ -54,6 +58,6 @@ public final class MetricsCollector {
         long total = completed + failed;
         double successRate = total == 0 ? 0.0 : (double) completed / total;
         return new SimulationReport(topology.name(), seed, simEndMillis, generatedRequests,
-            completed, failed, successRate, LatencyStats.from(latencies), componentReports);
+            completed, failed, successRate, LatencyStats.from(latencies), componentReports, failuresByReason);
     }
 }

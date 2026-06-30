@@ -109,7 +109,7 @@ class YamlTopologyLoaderTest {
 
     @Test
     void enforcesWorkloadLimits() throws IOException {
-        SimulationLimits tight = new SimulationLimits(100, 5, 10, 1000, 1000);
+        SimulationLimits tight = new SimulationLimits(100, 5, 10, 1000, 1000, 100);
         YamlTopologyLoader tightLoader = new YamlTopologyLoader(tight);
         String yaml = """
             name: t
@@ -136,5 +136,58 @@ class YamlTopologyLoaderTest {
         assertThatThrownBy(() -> loader.load(tempDir.resolve("nope.yaml")))
             .isInstanceOf(TopologyValidationException.class)
             .hasMessageContaining("no existe");
+    }
+
+    @Test
+    void loadsFaultsSection() throws IOException {
+        String yaml = """
+            name: t
+            components:
+              - { id: api, type: Service, capacity: 10, base_latency_ms: 5 }
+              - { id: db, type: Database, max_connections: 5, read_latency_ms: 2 }
+            connections:
+              - { from: api, to: db }
+            workload: { requests_per_second: 10, duration_seconds: 1 }
+            faults:
+              - { type: crash, target: db, at_second: 1, duration_s: 2 }
+              - { type: latency, target: api, at_second: 0, duration_s: 1, extra_ms: 100 }
+              - { type: partition, group_a: [api], group_b: [db], at_second: 1, duration_s: 1 }
+            """;
+
+        LoadedScenario scenario = loader.load(write(yaml));
+
+        assertThat(scenario.faults()).hasSize(3);
+    }
+
+    @Test
+    void rejectsUnknownFaultType() throws IOException {
+        String yaml = """
+            name: t
+            components:
+              - { id: api, type: Service, capacity: 10, base_latency_ms: 5 }
+            workload: { requests_per_second: 10, duration_seconds: 1 }
+            faults:
+              - { type: blackhole, target: api, at_second: 1 }
+            """;
+
+        assertThatThrownBy(() -> loader.load(write(yaml)))
+            .isInstanceOf(TopologyValidationException.class)
+            .hasMessageContaining("blackhole");
+    }
+
+    @Test
+    void rejectsFaultWithUnknownTarget() throws IOException {
+        String yaml = """
+            name: t
+            components:
+              - { id: api, type: Service, capacity: 10, base_latency_ms: 5 }
+            workload: { requests_per_second: 10, duration_seconds: 1 }
+            faults:
+              - { type: crash, target: ghost, at_second: 1 }
+            """;
+
+        assertThatThrownBy(() -> loader.load(write(yaml)))
+            .isInstanceOf(TopologyValidationException.class)
+            .hasMessageContaining("ghost");
     }
 }

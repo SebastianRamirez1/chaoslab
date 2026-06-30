@@ -14,7 +14,7 @@ public interface Component {
 
     /**
      * Intenta admitir un request. Si lo admite, reserva capacidad y devuelve la latencia
-     * de proceso; si no, devuelve un rechazo con motivo.
+     * de proceso; si no, devuelve un rechazo con su causa.
      */
     Outcome receive(Request request);
 
@@ -26,4 +26,16 @@ public interface Component {
 
     /** Pico de requests concurrentes observado (proxy de profundidad de cola). */
     int maxInFlight();
+
+    /** Marca el componente como caído: rechazará todo (CrashFault). */
+    void crash();
+
+    /** Restaura un componente caído. */
+    void recover();
+
+    /** Suma latencia de proceso inyectada por un fallo (LatencyFault). */
+    void addLatency(long extraMillis);
+
+    /** Quita latencia de proceso previamente inyectada. */
+    void removeLatency(long extraMillis);
 }

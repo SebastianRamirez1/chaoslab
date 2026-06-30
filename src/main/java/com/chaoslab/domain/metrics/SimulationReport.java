@@ -1,6 +1,8 @@
 package com.chaoslab.domain.metrics;
 
+import com.chaoslab.domain.topology.FailureReason;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Resultado final y reproducible de una corrida. Es un value object inmutable: dos corridas con
@@ -15,12 +17,15 @@ import java.util.List;
  * @param successRate             tasa de éxito en [0,1]
  * @param latency                 percentiles de latencia extremo a extremo
  * @param components              estado por componente
+ * @param failuresByReason        cantidad de fallos por causa
  */
 public record SimulationReport(String topologyName, long seed, long simulatedDurationMillis,
                                long generatedRequests, long completedRequests, long failedRequests,
-                               double successRate, LatencyStats latency, List<ComponentReport> components) {
+                               double successRate, LatencyStats latency, List<ComponentReport> components,
+                               Map<FailureReason, Long> failuresByReason) {
 
     public SimulationReport {
         components = components == null ? List.of() : List.copyOf(components);
+        failuresByReason = failuresByReason == null ? Map.of() : Map.copyOf(failuresByReason);
     }
 }

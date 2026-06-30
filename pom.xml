@@ -220,6 +220,12 @@
               <suppressionFiles>
                 <suppressionFile>config/owasp/dependency-check-suppressions.xml</suppressionFile>
               </suppressionFiles>
+              <!-- Directorio de datos NVD estable para cachearlo entre corridas de CI. -->
+              <dataDirectory>${user.home}/.dependency-check-data</dataDirectory>
+              <!-- La API key se lee de una variable de entorno: no se expone en logs (GHSA-qqhq-8r2c-c3f5). -->
+              <nvdApiKeyEnvironmentVariable>NVD_API_KEY</nvdApiKeyEnvironmentVariable>
+              <!-- No re-descargar la NVD si los datos cacheados tienen menos de una semana. -->
+              <nvdValidForHours>168</nvdValidForHours>
               <formats>
                 <format>HTML</format>
                 <format>JSON</format>

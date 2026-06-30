@@ -24,6 +24,17 @@ public final class ConsoleReportPrinter {
             report.generatedRequests(), report.completedRequests(), report.failedRequests(),
             report.successRate() * 100.0));
 
+        if (!report.failuresByReason().isEmpty()) {
+            StringBuilder reasons = new StringBuilder();
+            report.failuresByReason().forEach((reason, count) -> {
+                if (reasons.length() > 0) {
+                    reasons.append("  ");
+                }
+                reasons.append(reason).append('=').append(count);
+            });
+            out.append(String.format(Locale.ROOT, "fallos por causa: %s%n", reasons));
+        }
+
         LatencyStats latency = report.latency();
         out.append(String.format(Locale.ROOT,
             "latencia e2e (ms): p50=%d  p95=%d  p99=%d  min=%d  max=%d  (n=%d)%n",

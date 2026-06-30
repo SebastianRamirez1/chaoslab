@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * El grafo del sistema: componentes conectados por aristas dirigidas. Hace cumplir sus
@@ -17,6 +18,7 @@ public final class TopologyGraph {
     private final Map<String, Component> components;
     private final Map<String, List<String>> adjacency;
     private final String entryPointId;
+    private final List<Partition> activePartitions = new ArrayList<>();
 
     private TopologyGraph(String name, Map<String, Component> components,
                           Map<String, List<String>> adjacency, String entryPointId) {
@@ -83,6 +85,11 @@ public final class TopologyGraph {
         return new TopologyGraph(name, byId, adj, entryPoints.get(0));
     }
 
+    /** ¿Existe un componente con este id? */
+    public boolean contains(String id) {
+        return components.containsKey(id);
+    }
+
     /** Componente por id. */
     public Component component(String id) {
         Component c = components.get(id);
@@ -120,5 +127,37 @@ public final class TopologyGraph {
     /** Componentes en orden de declaración. */
     public Collection<Component> components() {
         return List.copyOf(components.values());
+    }
+
+    /** Activa una partición de red entre dos grupos de componentes (NetworkPartition). */
+    public void partition(Set<String> groupA, Set<String> groupB) {
+        activePartitions.add(new Partition(Set.copyOf(groupA), Set.copyOf(groupB)));
+    }
+
+    /** Cura (desactiva) una partición previamente activada entre los mismos grupos. */
+    public void healPartition(Set<String> groupA, Set<String> groupB) {
+        Set<String> a = Set.copyOf(groupA);
+        Set<String> b = Set.copyOf(groupB);
+        activePartitions.removeIf(p
+            -> (p.groupA().equals(a) && p.groupB().equals(b))
+            || (p.groupA().equals(b) && p.groupB().equals(a)));
+    }
+
+    /**
+     * ¿Puede un request viajar de {@code from} a {@code to}? Falso si alguna partición activa
+     * separa ambos componentes (uno en cada grupo).
+     */
+    public boolean isReachable(String from, String to) {
+        for (Partition p : activePartitions) {
+            boolean separated = (p.groupA().contains(from) && p.groupB().contains(to))
+                || (p.groupB().contains(from) && p.groupA().contains(to));
+            if (separated) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private record Partition(Set<String> groupA, Set<String> groupB) {
     }
 }
