@@ -74,6 +74,36 @@ class RunSimulationEndToEndTest {
         assertThat(withSeed1).isNotEqualTo(withSeed2);
     }
 
+    private static final String RESILIENT_YAML = """
+        name: "API resiliente"
+        seed: 42
+        components:
+          - id: gateway
+            type: LoadBalancer
+            resilience:
+              circuit_breaker: { threshold: 5, cooldown_ms: 2000 }
+          - { id: api-1, type: Service, capacity: 100, base_latency_ms: 50 }
+          - { id: api-2, type: Service, capacity: 100, base_latency_ms: 50 }
+        connections:
+          - { from: gateway, to: [api-1, api-2] }
+        workload:
+          requests_per_second: 200
+          duration_seconds: 15
+        """;
+
+    @Test
+    void circuitBreakerKeepsSuccessHighDuringCrash() throws IOException {
+        RunSimulationUseCase useCase = useCase();
+        Path resilient = tempDir.resolve("resilient.yaml");
+        Files.writeString(resilient, RESILIENT_YAML);
+        List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
+
+        SimulationReport report = useCase.run(resilient, OptionalLong.empty(), crash);
+
+        // Con el breaker en el gateway, casi todo completa pese a api-1 caída (reenruta a api-2).
+        assertThat(report.successRate()).isGreaterThan(0.95);
+    }
+
     @Test
     void crashFaultOnOneReplicaProducesFailures() throws IOException {
         RunSimulationUseCase useCase = useCase();

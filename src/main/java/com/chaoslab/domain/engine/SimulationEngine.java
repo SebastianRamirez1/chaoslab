@@ -3,9 +3,12 @@ package com.chaoslab.domain.engine;
 import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.metrics.MetricsCollector;
 import com.chaoslab.domain.metrics.SimulationReport;
+import com.chaoslab.domain.resilience.ResiliencePolicy;
 import com.chaoslab.domain.topology.Component;
 import com.chaoslab.domain.topology.FailureReason;
+import com.chaoslab.domain.topology.LoadBalancer;
 import com.chaoslab.domain.topology.Outcome;
+import com.chaoslab.domain.topology.Request;
 import com.chaoslab.domain.topology.TopologyGraph;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +17,9 @@ import java.util.Objects;
  * Motor de eventos discretos: un reloj virtual salta de evento a evento (nunca en tiempo real),
  * procesando la cola de prioridad hasta agotarla. Misma topología + mismos eventos = mismo
  * resultado siempre: ese determinismo es el atributo de Fiabilidad (#1).
+ *
+ * <p>Cada salto entre componentes se modela como una "llamada" del llamador al destino; el
+ * llamador aplica sus políticas de resiliencia (circuit breaker, timeout, reintentos).
  */
 public final class SimulationEngine {
 
@@ -73,32 +79,58 @@ public final class SimulationEngine {
     }
 
     private void onArrived(RequestArrived arrived) {
-        Component component = topology.component(arrived.componentId());
-        metrics.recordArrival(arrived.componentId());
-        Outcome outcome = component.receive(arrived.request());
-        if (outcome.accepted()) {
-            long departAt = clock.now() + outcome.latencyMillis();
-            events.schedule(new RequestDeparted(departAt, arrived.request(), arrived.componentId()));
-        } else {
-            events.schedule(new RequestFailed(clock.now(), arrived.request(), arrived.componentId(), outcome.reason()));
+        Component target = topology.component(arrived.componentId());
+        ResiliencePolicy callerPolicy = callerPolicyOf(arrived.fromId());
+        long now = clock.now();
+
+        if (callerPolicy.hasBreaker() && !callerPolicy.breakerFor(target.id()).isCallPermitted(now)) {
+            handleFailedCall(arrived, FailureReason.CIRCUIT_OPEN);
+            return;
         }
+
+        metrics.recordArrival(target.id());
+        Outcome outcome = target.receive(arrived.request());
+        if (!outcome.accepted()) {
+            recordBreakerFailure(callerPolicy, target.id(), now);
+            handleFailedCall(arrived, outcome.reason());
+            return;
+        }
+
+        long latency = outcome.latencyMillis();
+        if (callerPolicy.hasTimeout() && latency > callerPolicy.timeoutMillis()) {
+            target.release();
+            recordBreakerFailure(callerPolicy, target.id(), now);
+            handleFailedCall(arrived, FailureReason.TIMEOUT);
+            return;
+        }
+
+        if (callerPolicy.hasBreaker()) {
+            callerPolicy.breakerFor(target.id()).recordSuccess();
+        }
+        events.schedule(new RequestDeparted(now + latency, arrived.request(), target.id()));
     }
 
     private void onDeparted(RequestDeparted departed) {
         String fromId = departed.componentId();
-        topology.component(fromId).release();
-        List<String> nextHops = topology.route(fromId);
-        if (nextHops.isEmpty()) {
+        Component caller = topology.component(fromId);
+        caller.release();
+
+        List<String> downstreams = topology.downstreams(fromId);
+        if (downstreams.isEmpty()) {
             events.schedule(new RequestCompleted(clock.now(), departed.request()));
             return;
         }
-        for (String hop : nextHops) {
-            if (topology.isReachable(fromId, hop)) {
-                events.schedule(new RequestArrived(clock.now(), departed.request(), hop));
+
+        if (caller instanceof LoadBalancer balancer) {
+            String target = chooseTarget(balancer, downstreams, caller.resilience(), clock.now());
+            if (target == null) {
+                events.schedule(new RequestFailed(clock.now(), departed.request(), fromId, FailureReason.CIRCUIT_OPEN));
             } else {
-                // La partición de red corta la comunicación hacia el destino.
-                events.schedule(new RequestFailed(
-                    clock.now(), departed.request(), hop, FailureReason.NETWORK_PARTITION));
+                forward(fromId, target, departed.request(), 0);
+            }
+        } else {
+            for (String target : downstreams) {
+                forward(fromId, target, departed.request(), 0);
             }
         }
     }
@@ -108,6 +140,59 @@ public final class SimulationEngine {
         fault.apply(topology);
         if (fault.durationMillis() > 0) {
             events.schedule(new FaultCleared(clock.now() + fault.durationMillis(), fault));
+        }
+    }
+
+    /** Programa la llegada a {@code target}, salvo que una partición de red lo impida. */
+    private void forward(String fromId, String target, Request request, int attempt) {
+        if (topology.isReachable(fromId, target)) {
+            events.schedule(new RequestArrived(clock.now(), request, target, fromId, attempt));
+        } else {
+            events.schedule(new RequestFailed(clock.now(), request, target, FailureReason.NETWORK_PARTITION));
+        }
+    }
+
+    /** Tras una llamada fallida, reintenta (si la política lo permite) o falla definitivamente. */
+    private void handleFailedCall(RequestArrived call, FailureReason reason) {
+        String fromId = call.fromId();
+        if (fromId != null) {
+            ResiliencePolicy policy = topology.component(fromId).resilience();
+            int nextAttempt = call.attempt() + 1;
+            if (nextAttempt < policy.maxAttempts()) {
+                String retryTarget = chooseRetryTarget(topology.component(fromId), call.componentId(), policy);
+                if (retryTarget != null) {
+                    forward(fromId, retryTarget, call.request(), nextAttempt);
+                    return;
+                }
+            }
+        }
+        events.schedule(new RequestFailed(clock.now(), call.request(), call.componentId(), reason));
+    }
+
+    private String chooseTarget(LoadBalancer balancer, List<String> downstreams, ResiliencePolicy policy, long now) {
+        if (!policy.hasBreaker()) {
+            return balancer.chooseFrom(downstreams);
+        }
+        List<String> permitted = downstreams.stream()
+            .filter(target -> policy.breakerFor(target).isCallPermitted(now))
+            .toList();
+        return permitted.isEmpty() ? null : balancer.chooseFrom(permitted);
+    }
+
+    private String chooseRetryTarget(Component caller, String failedTarget, ResiliencePolicy policy) {
+        if (caller instanceof LoadBalancer balancer) {
+            return chooseTarget(balancer, topology.downstreams(caller.id()), policy, clock.now());
+        }
+        return failedTarget;
+    }
+
+    private ResiliencePolicy callerPolicyOf(String fromId) {
+        return fromId == null ? ResiliencePolicy.none() : topology.component(fromId).resilience();
+    }
+
+    private static void recordBreakerFailure(ResiliencePolicy policy, String targetId, long now) {
+        if (policy.hasBreaker()) {
+            policy.breakerFor(targetId).recordFailure(now);
         }
     }
 }

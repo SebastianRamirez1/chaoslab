@@ -7,6 +7,8 @@ import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.fault.LatencyFault;
 import com.chaoslab.domain.fault.NetworkPartition;
+import com.chaoslab.domain.resilience.ResiliencePolicy;
+import com.chaoslab.domain.topology.AbstractComponent;
 import com.chaoslab.domain.topology.Component;
 import com.chaoslab.domain.topology.ComponentType;
 import com.chaoslab.domain.topology.Connection;
@@ -129,13 +131,36 @@ public final class YamlTopologyLoader implements TopologyLoader {
     private Component buildComponent(String id, String typeStr, Map<String, Object> map) {
         ComponentType type = parseType(typeStr, id);
         String ctx = "el componente '" + id + "'";
-        return switch (type) {
+        AbstractComponent component = switch (type) {
             case SERVICE -> new Service(id, reqInt(map, "capacity", ctx), reqLong(map, "base_latency_ms", ctx));
             case QUEUE -> new MessageQueue(id, reqInt(map, "max_size", ctx));
             case DATABASE -> new Database(id, reqInt(map, "max_connections", ctx),
                 reqLong(map, "read_latency_ms", ctx));
             case LOAD_BALANCER -> new LoadBalancer(id);
         };
+        Object resilience = map.get("resilience");
+        if (resilience != null) {
+            component.configureResilience(parseResilience(asMap(resilience, "resilience de " + ctx), ctx));
+        }
+        return component;
+    }
+
+    private ResiliencePolicy parseResilience(Map<String, Object> map, String ctx) {
+        int timeoutMillis = (int) optLong(map, "timeout_ms", 0L);
+        int maxAttempts = 1;
+        Object retry = map.get("retry");
+        if (retry != null) {
+            maxAttempts = reqInt(asMap(retry, "retry de " + ctx), "max_attempts", "retry de " + ctx);
+        }
+        int threshold = 0;
+        long cooldownMillis = 0L;
+        Object breaker = map.get("circuit_breaker");
+        if (breaker != null) {
+            Map<String, Object> breakerMap = asMap(breaker, "circuit_breaker de " + ctx);
+            threshold = reqInt(breakerMap, "threshold", "circuit_breaker de " + ctx);
+            cooldownMillis = optLong(breakerMap, "cooldown_ms", 0L);
+        }
+        return new ResiliencePolicy(timeoutMillis, maxAttempts, threshold, cooldownMillis);
     }
 
     private static ComponentType parseType(String typeStr, String id) {

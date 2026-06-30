@@ -1,5 +1,7 @@
 package com.chaoslab.domain.topology;
 
+import com.chaoslab.domain.resilience.ResiliencePolicy;
+
 /**
  * Base de los componentes con capacidad acotada: lleva la cuenta de requests en vuelo,
  * rechaza cuando se supera la capacidad y registra el pico de concurrencia. También aplica
@@ -16,6 +18,7 @@ public abstract class AbstractComponent implements Component {
     private int maxInFlight;
     private boolean down;
     private long injectedLatencyMillis;
+    private ResiliencePolicy resilience = ResiliencePolicy.none();
 
     protected AbstractComponent(String id, int capacity) {
         if (id == null || id.isBlank()) {
@@ -89,6 +92,19 @@ public abstract class AbstractComponent implements Component {
     @Override
     public final void removeLatency(long extraMillis) {
         this.injectedLatencyMillis = Math.max(0L, this.injectedLatencyMillis - extraMillis);
+    }
+
+    @Override
+    public final ResiliencePolicy resilience() {
+        return resilience;
+    }
+
+    /** Asigna las políticas de resiliencia del componente (lo usa el loader). */
+    public final void configureResilience(ResiliencePolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException("la política de resiliencia no puede ser null");
+        }
+        this.resilience = policy;
     }
 
     protected final int capacity() {
