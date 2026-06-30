@@ -1,5 +1,7 @@
 package com.chaoslab.domain.topology;
 
+import com.chaoslab.domain.resilience.ResiliencePolicy;
+
 /**
  * Contrato de un componente de la topología (directrices §1.2: frontera con contrato,
  * no "una clase suelta"). Añadir un tipo nuevo = implementar esta interfaz, sin tocar el motor.
@@ -38,4 +40,7 @@ public interface Component {
 
     /** Quita latencia de proceso previamente inyectada. */
     void removeLatency(long extraMillis);
+
+    /** Políticas de resiliencia que el componente aplica a sus llamadas salientes. */
+    ResiliencePolicy resilience();
 }

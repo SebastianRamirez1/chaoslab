@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.chaoslab.application.LoadedScenario;
 import com.chaoslab.domain.engine.SimulationLimits;
+import com.chaoslab.domain.resilience.ResiliencePolicy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -173,6 +174,31 @@ class YamlTopologyLoaderTest {
         assertThatThrownBy(() -> loader.load(write(yaml)))
             .isInstanceOf(TopologyValidationException.class)
             .hasMessageContaining("blackhole");
+    }
+
+    @Test
+    void loadsResiliencePolicies() throws IOException {
+        String yaml = """
+            name: t
+            components:
+              - id: gateway
+                type: LoadBalancer
+                resilience:
+                  timeout_ms: 200
+                  retry: { max_attempts: 3 }
+                  circuit_breaker: { threshold: 5, cooldown_ms: 3000 }
+              - { id: api, type: Service, capacity: 10, base_latency_ms: 5 }
+            connections:
+              - { from: gateway, to: api }
+            workload: { requests_per_second: 10, duration_seconds: 1 }
+            """;
+
+        LoadedScenario scenario = loader.load(write(yaml));
+        ResiliencePolicy policy = scenario.topology().component("gateway").resilience();
+
+        assertThat(policy.hasBreaker()).isTrue();
+        assertThat(policy.hasTimeout()).isTrue();
+        assertThat(policy.maxAttempts()).isEqualTo(3);
     }
 
     @Test

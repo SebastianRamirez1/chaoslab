@@ -116,6 +116,11 @@ public final class TopologyGraph {
         return List.copyOf(outgoing);
     }
 
+    /** Destinos salientes crudos de un componente (sin lógica de balanceo), en orden. */
+    public List<String> downstreams(String fromId) {
+        return List.copyOf(adjacency.getOrDefault(fromId, List.of()));
+    }
+
     public String name() {
         return name;
     }
