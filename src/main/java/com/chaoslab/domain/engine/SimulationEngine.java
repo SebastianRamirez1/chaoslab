@@ -23,6 +23,8 @@ import java.util.Objects;
  */
 public final class SimulationEngine {
 
+    private static final long SNAPSHOT_INTERVAL_MILLIS = 1000L;
+
     private final Clock clock = new Clock();
     private final EventQueue events = new EventQueue();
     private final TopologyGraph topology;
@@ -53,6 +55,8 @@ public final class SimulationEngine {
      */
     public SimulationReport run(long seed, long generatedRequests) {
         long processed = 0;
+        long nextSnapshotAt = SNAPSHOT_INTERVAL_MILLIS;
+        metrics.captureSnapshot(topology, 0L);
         while (!events.isEmpty()) {
             if (processed >= maxEvents) {
                 throw new SimulationLimitExceededException(
@@ -61,8 +65,13 @@ public final class SimulationEngine {
             Event event = events.poll();
             clock.advanceTo(event.timestampMillis());
             handle(event);
+            while (clock.now() >= nextSnapshotAt) {
+                metrics.captureSnapshot(topology, nextSnapshotAt);
+                nextSnapshotAt += SNAPSHOT_INTERVAL_MILLIS;
+            }
             processed++;
         }
+        metrics.captureSnapshot(topology, clock.now());
         return metrics.report(topology, clock.now(), generatedRequests, seed);
     }
 
