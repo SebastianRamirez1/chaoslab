@@ -1,0 +1,13 @@
+# Normaliza saltos de línea: LF en el repo, evita churn CRLF/LF entre Windows y CI (Linux).
+* text=auto eol=lf
+
+# Binarios: no tocar.
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+
+# Scripts de Windows conservan CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
