@@ -29,6 +29,9 @@ public interface Component {
     /** Pico de requests concurrentes observado (proxy de profundidad de cola). */
     int maxInFlight();
 
+    /** Requests actualmente en vuelo (profundidad instantánea, para snapshots en el tiempo). */
+    int currentInFlight();
+
     /** Marca el componente como caído: rechazará todo (CrashFault). */
     void crash();
 

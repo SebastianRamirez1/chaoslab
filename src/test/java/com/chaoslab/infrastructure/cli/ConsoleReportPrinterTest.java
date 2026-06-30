@@ -20,7 +20,7 @@ class ConsoleReportPrinterTest {
             "demo", 42L, 30_000L, 100L, 95L, 5L, 0.95,
             new LatencyStats(95L, 50L, 70L, 120L, 200L, 250L),
             List.of(new ComponentReport("api", ComponentType.SERVICE, 100L, 5L, 12, Health.UP)),
-            Map.of(FailureReason.CAPACITY, 5L));
+            Map.of(FailureReason.CAPACITY, 5L), List.of());
 
         String text = new ConsoleReportPrinter().format(report);
 

@@ -72,6 +72,11 @@ public abstract class AbstractComponent implements Component {
     }
 
     @Override
+    public final int currentInFlight() {
+        return inFlight;
+    }
+
+    @Override
     public final void crash() {
         this.down = true;
     }

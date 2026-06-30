@@ -18,14 +18,16 @@ import java.util.Map;
  * @param latency                 percentiles de latencia extremo a extremo
  * @param components              estado por componente
  * @param failuresByReason        cantidad de fallos por causa
+ * @param timeline                línea de tiempo de snapshots (para reproducir en el dashboard)
  */
 public record SimulationReport(String topologyName, long seed, long simulatedDurationMillis,
                                long generatedRequests, long completedRequests, long failedRequests,
                                double successRate, LatencyStats latency, List<ComponentReport> components,
-                               Map<FailureReason, Long> failuresByReason) {
+                               Map<FailureReason, Long> failuresByReason, List<SimulationSnapshot> timeline) {
 
     public SimulationReport {
         components = components == null ? List.of() : List.copyOf(components);
         failuresByReason = failuresByReason == null ? Map.of() : Map.copyOf(failuresByReason);
+        timeline = timeline == null ? List.of() : List.copyOf(timeline);
     }
 }
