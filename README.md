@@ -15,7 +15,7 @@ y CI con gates de calidad. El motor de simulación se construye en las fases sig
 
 ## Stack
 
-- **Java 21 LTS** + **Spring Boot 3.3** (solo en las capas externas; el dominio es puro)
+- **Java 21 LTS** + **Spring Boot 3.5** (solo en las capas externas; el dominio es puro)
 - Motor de **eventos discretos** propio · **Picocli** (CLI) · **Spring WebSocket/STOMP** (dashboard)
 - **JUnit 5 + AssertJ** · **Checkstyle** · **SpotBugs** · **JaCoCo** · **OWASP Dependency-Check**
 - **GitHub Actions** (CI) · **Docker** (entorno reproducible)
@@ -42,12 +42,21 @@ src/main/java/com/chaoslab/
 - JDK 21 (Temurin recomendado). Si tu JDK por defecto es < 21, el build usa **Maven Toolchains**
   para compilar con JDK 21 (ver `~/.m2/toolchains.xml`).
 - Maven 3.9+
+- `.mvn/jvm.config` fuerza `-Djava.net.preferIPv4Stack=true` para evitar fallos de resolución de
+  Maven Central en entornos con IPv6 roto; es inocuo donde IPv6 funciona.
 
 ## Comandos
 
 ```bash
 # Build completo: compila + tests + Checkstyle + SpotBugs + gate de cobertura JaCoCo
 mvn verify
+
+# Correr una simulación (los fallos del YAML se inyectan solos)
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/order-api.yaml
+
+# Inyectar fallos por CLI (repetible): crash:<target>:<atSeg>[:<durSeg>],
+# latency:<target>:<atSeg>:<durSeg>:<extraMs>, partition:<a,b>:<c>:<atSeg>:<durSeg>
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/order-api.yaml --fault crash:api-1:10:20
 
 # Solo lint de estilo
 mvn checkstyle:check

@@ -1,0 +1,44 @@
+name: Security (SCA)
+
+# SCA de dependencias (OWASP Dependency-Check, §5.5). Va en su propio workflow porque la
+# descarga de la base NVD (~360k CVEs) es lenta y la API de la NVD aplica rate-limit, así
+# que NO debe estar en el camino crítico de cada PR. Corre a diario y bajo demanda.
+on:
+  schedule:
+    - cron: '0 6 * * *'   # diario, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    # Timeout amplio: si la NVD throttlea, reintenta sin presión (nadie espera este job).
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # Cachea la base NVD entre corridas. Con nvdValidForHours=168 (pom), una vez poblada
+      # las corridas de la semana siguiente no la re-descargan.
+      - name: Cache NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.dependency-check-data
+          key: dependency-check-data-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-data-
+      - name: OWASP Dependency-Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: mvn -B -ntp -Psecurity verify
+      - name: Upload dependency-check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.*

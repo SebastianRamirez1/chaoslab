@@ -1,0 +1,44 @@
+# Misma topología y mismos fallos que order-api.yaml, pero el gateway tiene un CircuitBreaker.
+# Compará las dos corridas: sin breaker (order-api.yaml) el éxito cae al ~83%; con breaker el
+# gateway deja de enrutar a la réplica caída y el éxito se mantiene alto. Ese es el "momento ajá".
+name: "API de pedidos (resiliente)"
+seed: 42
+
+components:
+  - id: gateway
+    type: LoadBalancer
+    resilience:
+      circuit_breaker: { threshold: 5, cooldown_ms: 2000 }
+      retry: { max_attempts: 2 }
+
+  - id: api-1
+    type: Service
+    capacity: 100
+    base_latency_ms: 50
+
+  - id: api-2
+    type: Service
+    capacity: 100
+    base_latency_ms: 50
+
+  - id: orders-queue
+    type: Queue
+    max_size: 1000
+
+  - id: orders-db
+    type: Database
+    max_connections: 50
+    read_latency_ms: 20
+
+connections:
+  - { from: gateway, to: [api-1, api-2] }
+  - { from: api-1, to: orders-queue }
+  - { from: api-2, to: orders-queue }
+  - { from: orders-queue, to: orders-db }
+
+workload:
+  requests_per_second: 200
+  duration_seconds: 60
+
+faults:
+  - { type: crash, target: api-1, at_second: 20, duration_s: 15 }
