@@ -46,6 +46,12 @@ src/main/java/com/chaoslab/
 └── infrastructure/    ← adaptadores: yaml, cli, (web en Fase 3)
 ```
 
+### Decisiones de arquitectura (ADRs)
+
+- [0001 — Motor de eventos discretos determinista](docs/adr/0001-motor-eventos-discretos-determinista.md)
+- [0002 — Dashboard por replay de línea de tiempo (no WebSocket)](docs/adr/0002-timeline-replay-vs-websocket.md)
+- [0003 — Monolito modular con Clean Architecture](docs/adr/0003-monolito-modular-clean-architecture.md)
+
 ## Requisitos
 
 - JDK 21 (Temurin recomendado). Si tu JDK por defecto es < 21, el build usa **Maven Toolchains**
@@ -90,6 +96,16 @@ java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/resilient-order-api.ya
 
 Con el breaker, el balanceador deja de enrutar a la réplica caída y el sistema **degrada en vez
 de colapsar**. Mismo `seed` → mismo resultado siempre (determinismo).
+
+## Docker
+
+```bash
+# Levanta el dashboard en http://localhost:8080
+docker compose up --build
+```
+
+La imagen es multi-etapa (compila con Maven+JDK 21, corre sobre un JRE 21); no necesitás Java 21
+instalado localmente para usarla.
 
 ## Calidad y gates
 
