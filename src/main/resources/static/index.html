@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ChaosLab — dashboard de simulación de sistemas distribuidos y chaos engineering.">
+  <title>ChaosLab · Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>ChaosLab <span aria-hidden="true">🔬</span></h1>
+    <p class="tagline">Inyectá caos en un sistema distribuido simulado y observá cómo responde.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls" aria-labelledby="controls-title">
+      <h2 id="controls-title">Escenario</h2>
+
+      <label for="topology">Topología</label>
+      <select id="topology" name="topology"></select>
+
+      <label for="seed">Semilla <span class="hint">(opcional)</span></label>
+      <input id="seed" name="seed" type="number" inputmode="numeric" placeholder="del YAML">
+
+      <label for="fault">Fallo por CLI <span class="hint">(opcional)</span></label>
+      <input id="fault" name="fault" type="text" placeholder="crash:api-1:20:15">
+      <div class="quick">
+        <button type="button" class="ghost" data-fault="crash:api-1:20:15">Tumbar api-1</button>
+        <button type="button" class="ghost" data-fault="latency:orders-db:15:20:400">DB lenta</button>
+        <button type="button" class="ghost" data-fault="">Limpiar</button>
+      </div>
+
+      <label for="speed">Velocidad de reproducción</label>
+      <input id="speed" name="speed" type="range" min="1" max="20" value="8">
+
+      <button id="run" type="button" class="primary">▶ Correr simulación</button>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel graph-panel" aria-labelledby="graph-title">
+      <h2 id="graph-title">Topología <span id="clock" class="clock"></span></h2>
+      <svg id="graph" viewBox="0 0 640 360" role="img" aria-label="Grafo de la topología"></svg>
+      <ul class="legend" aria-hidden="true">
+        <li><span class="dot up"></span> UP</li>
+        <li><span class="dot degraded"></span> DEGRADED</li>
+        <li><span class="dot down"></span> DOWN</li>
+      </ul>
+    </section>
+
+    <section class="panel metrics" aria-labelledby="metrics-title">
+      <h2 id="metrics-title">Métricas</h2>
+      <dl class="summary">
+        <div><dt>Generados</dt><dd id="m-generated">—</dd></div>
+        <div><dt>Completados</dt><dd id="m-completed">—</dd></div>
+        <div><dt>Fallidos</dt><dd id="m-failed">—</dd></div>
+        <div><dt>Éxito</dt><dd id="m-success" class="accent">—</dd></div>
+      </dl>
+      <div class="chart-box"><canvas id="chart-requests" height="140"></canvas></div>
+      <div class="chart-box"><canvas id="chart-latency" height="140"></canvas></div>
+      <p id="reasons" class="reasons"></p>
+    </section>
+  </main>
+</body>
+</html>

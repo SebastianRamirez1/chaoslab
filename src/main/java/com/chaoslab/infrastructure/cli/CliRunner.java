@@ -23,13 +23,14 @@ public final class CliRunner implements CommandLineRunner, ExitCodeGenerator {
 
     @Override
     public void run(String... args) {
-        CommandLine commandLine = new CommandLine(new ChaosLabCommand())
-            .addSubcommand("run", new RunCommand(useCase, new ConsoleReportPrinter()));
         if (args.length == 0) {
-            commandLine.usage(System.out);
+            // Modo servidor: el dashboard ya está levantado; no hay comando CLI que ejecutar.
+            System.out.println("ChaosLab dashboard: http://localhost:8080");
             this.exitCode = 0;
             return;
         }
+        CommandLine commandLine = new CommandLine(new ChaosLabCommand())
+            .addSubcommand("run", new RunCommand(useCase, new ConsoleReportPrinter()));
         this.exitCode = commandLine.execute(args);
     }
 
