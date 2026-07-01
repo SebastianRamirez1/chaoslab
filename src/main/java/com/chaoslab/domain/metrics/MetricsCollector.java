@@ -23,6 +23,7 @@ public final class MetricsCollector {
     private final List<Long> latencies = new ArrayList<>();
     private final Map<String, long[]> perComponent = new LinkedHashMap<>();
     private final Map<FailureReason, Long> failuresByReason = new EnumMap<>(FailureReason.class);
+    private final List<SimulationSnapshot> timeline = new ArrayList<>();
 
     /** Registra que un request llegó a un componente. */
     public void recordArrival(String componentId) {
@@ -42,6 +43,17 @@ public final class MetricsCollector {
         latencies.add(latencyMillis);
     }
 
+    /** Captura una foto del estado actual (métricas acumuladas + estado de cada componente). */
+    public void captureSnapshot(TopologyGraph topology, long atMillis) {
+        List<ComponentSnapshot> components = new ArrayList<>();
+        for (Component component : topology.components()) {
+            components.add(new ComponentSnapshot(
+                component.id(), component.type(), component.health(), component.currentInFlight()));
+        }
+        timeline.add(new SimulationSnapshot(
+            atMillis, completed, failed, LatencyStats.from(latencies).p95(), components));
+    }
+
     private long[] counters(String componentId) {
         return perComponent.computeIfAbsent(componentId, k -> new long[2]);
     }
@@ -58,6 +70,7 @@ public final class MetricsCollector {
         long total = completed + failed;
         double successRate = total == 0 ? 0.0 : (double) completed / total;
         return new SimulationReport(topology.name(), seed, simEndMillis, generatedRequests,
-            completed, failed, successRate, LatencyStats.from(latencies), componentReports, failuresByReason);
+            completed, failed, successRate, LatencyStats.from(latencies), componentReports,
+            failuresByReason, timeline);
     }
 }

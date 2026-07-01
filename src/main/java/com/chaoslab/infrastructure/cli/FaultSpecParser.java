@@ -18,12 +18,12 @@ import java.util.stream.Collectors;
  *   <li>{@code partition:<a1,a2>:<b1,b2>:<atSeg>:<durSeg>}</li>
  * </ul>
  */
-final class FaultSpecParser {
+public final class FaultSpecParser {
 
     private FaultSpecParser() {
     }
 
-    static Fault parse(String spec, int index) {
+    public static Fault parse(String spec, int index) {
         String[] parts = spec.split(":");
         String type = parts[0].toLowerCase(Locale.ROOT);
         String id = "cli-" + type + "-" + index;

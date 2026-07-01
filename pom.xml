@@ -44,6 +44,12 @@
       <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
 
+    <!-- Dashboard web (Fase 3): REST + assets estáticos. Solo capa de infraestructura. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
     <!-- CLI (Fase 1) -->
     <dependency>
       <groupId>info.picocli</groupId>
