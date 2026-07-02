@@ -1,0 +1,164 @@
+# =============================================================================
+# Topología del proyecto: proyecto_distribuidora (Distribuidora de Huevos)
+# Repo: https://github.com/SebastianRamirez1/proyecto_distribuidora
+# Generado a partir de: README.md, docker-compose.yml, docker-compose.prod.yml,
+#                        railway.toml, pom.xml, estructura de carpetas
+# =============================================================================
+
+name: distribuidora-huevos
+
+proyecto:
+  nombre: "Distribuidora de Huevos - Sistema de Gestión"
+  descripcion: >
+    Sistema de gestión para distribuidora de huevos: ventas, inventario,
+    caja diaria y créditos (fiado) de clientes.
+  tipo: "Monolito modular (Clean Architecture / DDD)"
+  repositorio: "SebastianRamirez1/proyecto_distribuidora"
+
+stack_tecnologico:
+  backend:
+    lenguaje: "Java 17"
+    framework: "Spring Boot 3.2"
+    build_tool: "Maven"
+    testing: ["JUnit 5", "Mockito"]
+  frontend:
+    build_tool: "pnpm"
+    salida: "src/main/resources/static/"   # se empaqueta dentro del JAR
+    nota: "Servido como recurso estático por el propio Spring Boot (no es servicio aparte)"
+  base_datos:
+    motor: "PostgreSQL"
+    version_local: "15-alpine"
+    version_prod: "16-alpine"
+  contenedores: "Docker / docker-compose"
+  hosting: "Railway (builder Nixpacks)"
+
+arquitectura_capas:          # Clean Architecture, sin dependencias circulares
+  domain:
+    descripcion: "Núcleo del negocio, sin dependencias de Spring"
+    componentes:
+      - entities         # Entidades con comportamiento (no anémicas)
+      - valueobjects      # Objetos de valor inmutables
+      - enums              # TipoCliente, TipoProducto, TipoPago
+      - repositories        # Interfaces definidas en el dominio
+      - exceptions            # Excepciones de negocio
+  application:
+    descripcion: "Casos de uso / orquestación"
+    depende_de: [domain]
+    componentes:
+      - service            # Lógica de orquestación
+      - dto.command          # Entrada de datos
+      - dto.response           # Salida de datos
+      - mapper                   # Dominio <-> DTO
+  infrastructure:
+    descripcion: "Detalles técnicos y adaptadores"
+    depende_de: [application, domain]
+    componentes:
+      persistence:
+        - entity            # Entidades JPA
+        - repository          # Spring Data + implementaciones de dominio
+        - mapper                # Dominio <-> JPA Entity
+      controller: "REST Controllers + GlobalExceptionHandler"
+      config: "Configuración Spring (beans, seguridad, etc.)"
+
+  flujo_dependencias: "infrastructure -> application -> domain"
+
+topologia_runtime:
+  entorno_local:
+    orquestador: "docker-compose.yml"
+    servicios:
+      postgres:
+        imagen: "postgres:15-alpine"
+        contenedor: "distribuidora-postgres"
+        puertos: ["5432:5432"]
+        variables_entorno:
+          POSTGRES_DB: distribuidora_huevos
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        volumenes:
+          - "postgres_data:/var/lib/postgresql/data"
+          - "./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql"
+        healthcheck: "pg_isready -U postgres"
+    app_backend:
+      ejecucion: "mvn spring-boot:run (fuera de docker-compose)"
+      puerto: 8080
+      perfiles: ["default", "local (SQL visible)"]
+    volumenes_top_level:
+      - postgres_data
+
+  entorno_produccion:
+    orquestador: "docker-compose.prod.yml"
+    red:
+      nombre: distribuidora_net
+      driver: bridge
+    servicios:
+      db:
+        imagen: "postgres:16-alpine"
+        contenedor: "distribuidora_db"
+        restart: unless-stopped
+        variables_entorno:
+          POSTGRES_DB: distribuidora_huevos
+          POSTGRES_USER: "${DB_USERNAME:-distribuidora}"
+          POSTGRES_PASSWORD: "${DB_PASSWORD} (requerida)"
+        volumenes:
+          - "postgres_data:/var/lib/postgresql/data"
+        healthcheck: "pg_isready -U ${DB_USERNAME:-distribuidora}"
+        red: [distribuidora_net]
+      app:
+        descripcion: "Spring Boot + React (frontend embebido como estático)"
+        contenedor: "distribuidora_app"
+        build:
+          contexto: "."
+          dockerfile: "Dockerfile"
+        restart: unless-stopped
+        puertos: ["${PORT:-8080}:8080"]
+        variables_entorno:
+          SPRING_PROFILES_ACTIVE: prod
+          DB_URL: "jdbc:postgresql://db:5432/distribuidora_huevos"
+          DB_USERNAME: "${DB_USERNAME:-distribuidora}"
+          DB_PASSWORD: "${DB_PASSWORD}"
+        depende_de:
+          db: "condition: service_healthy"
+        red: [distribuidora_net]
+    volumenes_top_level:
+      - postgres_data
+
+  deploy_railway:
+    builder: NIXPACKS
+    build_command: >
+      instala pnpm -> compila frontend (sale en src/main/resources/static/)
+      -> mvn package -DskipTests (backend incluye estáticos en el JAR)
+    start_command: "java -jar target/huevos-1.0.0-SNAPSHOT.jar"
+    healthcheck_path: "/api/health"
+    healthcheck_timeout_seg: 300
+    restart_policy:
+      tipo: ON_FAILURE
+      max_reintentos: 3
+    variables:
+      SPRING_PROFILES_ACTIVE: prod
+
+api_rest:
+  base_path: "/api"
+  recursos:
+    clientes:
+      - { metodo: POST, ruta: "/api/clientes", desc: "Crear cliente (NORMAL o ESPECIAL)" }
+      - { metodo: PUT,  ruta: "/api/clientes/{id}/precio-especial", desc: "Actualizar precio especial" }
+    ventas:
+      - { metodo: POST, ruta: "/api/ventas", desc: "Registrar venta (EFECTIVO, TRANSFERENCIA, FIADO, ABONO)" }
+      - { metodo: POST, ruta: "/api/ventas/abono", desc: "Registrar abono a fiado" }
+    inventario:
+      - { metodo: GET,  ruta: "/api/inventario", desc: "Consultar stock actual" }
+      - { metodo: POST, ruta: "/api/inventario/cargar", desc: "Agregar canastas al stock" }
+    reportes:
+      - { metodo: GET,  ruta: "/api/reportes/caja/hoy", desc: "Reporte de caja del día" }
+    precios:
+      - { metodo: PUT,  ruta: "/api/precios/publico", desc: "Actualizar precio público" }
+
+modelo_dominio_clave:
+  entidades: [Cliente, Venta, Inventario, PrecioPublico, Credito]
+  enums: [TipoCliente(NORMAL, ESPECIAL), TipoProducto(EXTRA, NORMAL), TipoPago(EFECTIVO, TRANSFERENCIA, FIADO, ABONO)]
+  reglas_negocio:
+    - "Cliente NORMAL paga precio público (actualizable a diario)"
+    - "Cliente ESPECIAL paga precio personalizado, con posible descuento por volumen"
+    - "Stock en tiempo real: no se puede vender más del disponible"
+    - "Venta es inmutable (precio calculado, no editable)"
+    - "FIADO genera crédito; ABONO reduce el saldo pendiente"

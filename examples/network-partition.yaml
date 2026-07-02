@@ -1,0 +1,37 @@
+# Demo: partición de red (split-brain).
+# Entre el segundo 20 y el 40 una partición aísla a api-2 de la DB compartida: todo
+# request que el balanceador enrute por api-2 falla al cruzar (NETWORK_PARTITION),
+# mientras api-1 sigue funcionando. Al sanar la partición, el sistema se recupera.
+name: "Partición de red (split-brain)"
+seed: 42
+
+components:
+  - id: gateway
+    type: LoadBalancer
+
+  - id: api-1
+    type: Service
+    capacity: 100
+    base_latency_ms: 40
+
+  - id: api-2
+    type: Service
+    capacity: 100
+    base_latency_ms: 40
+
+  - id: shared-db
+    type: Database
+    max_connections: 60
+    read_latency_ms: 25
+
+connections:
+  - { from: gateway, to: [api-1, api-2] }
+  - { from: api-1, to: shared-db }
+  - { from: api-2, to: shared-db }
+
+workload:
+  requests_per_second: 200
+  duration_seconds: 60
+
+faults:
+  - { type: partition, group_a: [api-2], group_b: [shared-db], at_second: 20, duration_s: 20 }
