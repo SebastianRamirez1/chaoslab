@@ -22,6 +22,8 @@ public class TopologyCatalog {
     static {
         RESOURCES.put("order-api", "topologies/order-api.yaml");
         RESOURCES.put("resilient-order-api", "topologies/resilient-order-api.yaml");
+        RESOURCES.put("slow-database", "topologies/slow-database.yaml");
+        RESOURCES.put("network-partition", "topologies/network-partition.yaml");
     }
 
     /** Nombres de las topologías disponibles. */
