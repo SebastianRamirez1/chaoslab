@@ -1,0 +1,37 @@
+# Demo: saturación por base de datos lenta (Little's Law en acción).
+# La DB necesita ~30 conexiones concurrentes (300 req/s x 0.1s) pero solo tiene 20:
+# rechaza por CAPACITY de forma sostenida. A los 30s un LatencyFault (+150ms) empeora
+# la cascada: la concurrencia necesaria sube a ~75 y los rechazos se disparan.
+name: "DB lenta (saturación)"
+seed: 42
+
+components:
+  - id: gateway
+    type: LoadBalancer
+
+  - id: api-1
+    type: Service
+    capacity: 150
+    base_latency_ms: 30
+
+  - id: api-2
+    type: Service
+    capacity: 150
+    base_latency_ms: 30
+
+  - id: orders-db
+    type: Database
+    max_connections: 20
+    read_latency_ms: 100
+
+connections:
+  - { from: gateway, to: [api-1, api-2] }
+  - { from: api-1, to: orders-db }
+  - { from: api-2, to: orders-db }
+
+workload:
+  requests_per_second: 300
+  duration_seconds: 60
+
+faults:
+  - { type: latency, target: orders-db, at_second: 30, duration_s: 15, extra_ms: 150 }

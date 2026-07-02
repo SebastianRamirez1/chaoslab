@@ -1,0 +1,9 @@
+# Levanta el dashboard de ChaosLab en http://localhost:8080
+#   docker compose up --build
+services:
+  chaoslab:
+    build: .
+    image: chaoslab:latest
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

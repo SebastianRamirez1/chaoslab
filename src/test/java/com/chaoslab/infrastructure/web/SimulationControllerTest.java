@@ -26,7 +26,26 @@ class SimulationControllerTest {
         mvc.perform(get("/api/topologies"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$", hasItem("order-api")))
-            .andExpect(jsonPath("$", hasItem("resilient-order-api")));
+            .andExpect(jsonPath("$", hasItem("resilient-order-api")))
+            .andExpect(jsonPath("$", hasItem("slow-database")))
+            .andExpect(jsonPath("$", hasItem("network-partition")));
+    }
+
+    @Test
+    void exampleTopologiesRunAndExhibitTheirFailureMode() throws Exception {
+        // slow-database: la DB no da abasto -> fallos por CAPACITY.
+        mvc.perform(post("/api/run")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"topology\":\"slow-database\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.report.failuresByReason.CAPACITY").isNumber());
+
+        // network-partition: la partición corta api-2 <-> shared-db -> NETWORK_PARTITION.
+        mvc.perform(post("/api/run")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"topology\":\"network-partition\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.report.failuresByReason.NETWORK_PARTITION").isNumber());
     }
 
     @Test
