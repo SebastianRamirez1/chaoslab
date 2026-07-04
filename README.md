@@ -7,6 +7,13 @@
 
 La versión de aprendizaje de Chaos Monkey: barata, visible y reproducible.
 
+![Dashboard de ChaosLab: order-api colapsa al 83% de éxito ante un CrashFault; resilient-order-api, con CircuitBreaker, mantiene el 100%](docs/chaoslab-demo.gif)
+
+> El dashboard corriendo dos escenarios con el **mismo** `CrashFault` en una réplica: primero
+> `order-api` (sin defensas) cae al **83%** de éxito y su latencia p95 se dispara; luego
+> `resilient-order-api` (con **CircuitBreaker** en el balanceador) **degrada en vez de colapsar** y
+> mantiene el **100%**. Mismo `seed` → mismo resultado.
+
 ---
 
 ## Estado
