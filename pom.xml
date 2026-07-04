@@ -21,6 +21,10 @@
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
+    <!-- Sobrescribe el Tomcat gestionado por Spring Boot 3.5.16 (10.1.55) para remediar
+         CVE-2026-55276/53434 (9.1) y CVE-2026-53404 (7.3) detectados por el SCA nocturno. -->
+    <tomcat.version>10.1.56</tomcat.version>
+
     <!-- Versiones de plugins de calidad/seguridad (no gestionadas por el parent) -->
     <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
     <checkstyle.tool.version>10.21.1</checkstyle.tool.version>
