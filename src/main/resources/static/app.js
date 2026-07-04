@@ -186,11 +186,16 @@ function finalize(resp) {
 async function run() {
   const faultSpec = $('fault').value.trim();
   const seedValue = $('seed').value.trim();
+  const ownYaml = $('yaml').value.trim();
   const body = {
-    topology: $('topology').value,
     seed: seedValue === '' ? null : Number(seedValue),
     faults: faultSpec === '' ? [] : [faultSpec]
   };
+  if (ownYaml !== '') {
+    body.yaml = ownYaml;
+  } else {
+    body.topology = $('topology').value;
+  }
   status('Corriendo simulación…');
   $('run').disabled = true;
   try {
@@ -216,5 +221,16 @@ document.addEventListener('DOMContentLoaded', () => {
   $('run').addEventListener('click', run);
   document.querySelectorAll('.quick button').forEach(btn => {
     btn.addEventListener('click', () => { $('fault').value = btn.dataset.fault; });
+  });
+  $('yaml-file').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) { return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      $('yaml').value = reader.result;
+      document.querySelector('.own-yaml').open = true;
+      status('YAML cargado: ' + file.name + ' (se usará al correr).');
+    };
+    reader.readAsText(file);
   });
 });
