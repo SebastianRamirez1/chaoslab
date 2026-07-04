@@ -49,6 +49,17 @@ class SimulationControllerTest {
     }
 
     @Test
+    void topologyEndpointReturnsGraphWithoutRunning() throws Exception {
+        mvc.perform(post("/api/topology")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"topology\":\"order-api\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.entryPointId").value("gateway"))
+            .andExpect(jsonPath("$.nodes").isArray())
+            .andExpect(jsonPath("$.edges").isArray());
+    }
+
+    @Test
     void runReturnsTopologyStructureAndTimeline() throws Exception {
         mvc.perform(post("/api/run")
                 .contentType(MediaType.APPLICATION_JSON)

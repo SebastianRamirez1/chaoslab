@@ -57,6 +57,15 @@ public class SimulationController {
         return catalog.names();
     }
 
+    /** Devuelve solo la estructura del grafo (sin correr la simulación), para dibujarlo al elegir. */
+    @PostMapping("/topology")
+    public TopologyView topology(@RequestBody RunRequest request) throws IOException {
+        if (request == null) {
+            throw new IllegalArgumentException("cuerpo de la petición vacío");
+        }
+        return TopologyView.from(loader.load(resolveTopologyFile(request)).topology());
+    }
+
     @PostMapping("/run")
     public SimulationResponse run(@RequestBody RunRequest request) throws IOException {
         if (request == null) {

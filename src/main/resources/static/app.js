@@ -25,8 +25,29 @@ async function loadTopologies() {
       opt.textContent = name;
       select.appendChild(opt);
     });
+    previewTopology();
   } catch (e) {
     status('No se pudieron cargar las topologías: ' + e.message);
+  }
+}
+
+/** Dibuja el grafo de la topología elegida (o del YAML propio) SIN correr la simulación. */
+async function previewTopology() {
+  const ownYaml = $('yaml').value.trim();
+  const body = ownYaml !== '' ? { yaml: ownYaml } : { topology: $('topology').value };
+  try {
+    const res = await fetch('/api/topology', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) { status('No se pudo dibujar la topología: ' + (data.error || res.status)); return; }
+    renderGraph(data);
+    data.nodes.forEach(n => setHealth(n.id, 'UP'));
+    $('clock').textContent = '';
+  } catch (e) {
+    status('Error al dibujar la topología: ' + e.message);
   }
 }
 
@@ -125,6 +146,10 @@ function makeChart(canvasId, datasets) {
 }
 
 function initCharts() {
+  if (typeof Chart === 'undefined') {
+    console.warn('Chart.js no disponible: se omiten las gráficas (el resto del dashboard funciona).');
+    return;
+  }
   requestsChart = makeChart('chart-requests', [
     { label: 'Completados', data: [], borderColor: '#34d399', tension: 0.2, pointRadius: 0 },
     { label: 'Fallidos', data: [], borderColor: '#f87171', tension: 0.2, pointRadius: 0 }
@@ -136,6 +161,7 @@ function initCharts() {
 
 function resetCharts() {
   [requestsChart, latencyChart].forEach(c => {
+    if (!c) { return; }
     c.data.labels = [];
     c.data.datasets.forEach(d => { d.data = []; });
     c.update('none');
@@ -158,13 +184,17 @@ function replay(resp) {
     const seconds = (s.atMillis / 1000).toFixed(0);
     s.components.forEach(c => setHealth(c.id, c.health));
     $('clock').textContent = seconds + 's';
-    requestsChart.data.labels.push(seconds);
-    requestsChart.data.datasets[0].data.push(s.completedSoFar);
-    requestsChart.data.datasets[1].data.push(s.failedSoFar);
-    requestsChart.update('none');
-    latencyChart.data.labels.push(seconds);
-    latencyChart.data.datasets[0].data.push(s.latencyP95Millis);
-    latencyChart.update('none');
+    if (requestsChart) {
+      requestsChart.data.labels.push(seconds);
+      requestsChart.data.datasets[0].data.push(s.completedSoFar);
+      requestsChart.data.datasets[1].data.push(s.failedSoFar);
+      requestsChart.update('none');
+    }
+    if (latencyChart) {
+      latencyChart.data.labels.push(seconds);
+      latencyChart.data.datasets[0].data.push(s.latencyP95Millis);
+      latencyChart.update('none');
+    }
     setText('m-completed', s.completedSoFar);
     setText('m-failed', s.failedSoFar);
     i++;
@@ -216,9 +246,10 @@ async function run() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initCharts();
-  loadTopologies();
+  // Crítico primero (no depende de Chart.js): listeners + carga de topologías (que dibuja el grafo).
   $('run').addEventListener('click', run);
+  $('topology').addEventListener('change', previewTopology);
+  $('yaml').addEventListener('blur', previewTopology);
   document.querySelectorAll('.quick button').forEach(btn => {
     btn.addEventListener('click', () => { $('fault').value = btn.dataset.fault; });
   });
@@ -230,7 +261,15 @@ document.addEventListener('DOMContentLoaded', () => {
       $('yaml').value = reader.result;
       document.querySelector('.own-yaml').open = true;
       status('YAML cargado: ' + file.name + ' (se usará al correr).');
+      previewTopology();
     };
     reader.readAsText(file);
   });
+  loadTopologies();
+  // Gráficas: no crítico. Si Chart.js no cargó, se omiten sin romper el resto.
+  try {
+    initCharts();
+  } catch (e) {
+    console.warn('initCharts falló; el dashboard sigue funcionando sin gráficas.', e);
+  }
 });
