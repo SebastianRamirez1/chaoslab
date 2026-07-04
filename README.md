@@ -14,6 +14,21 @@ La versión de aprendizaje de Chaos Monkey: barata, visible y reproducible.
 > `resilient-order-api` (con **CircuitBreaker** en el balanceador) **degrada en vez de colapsar** y
 > mantiene el **100%**. Mismo `seed` → mismo resultado.
 
+## Probalo en 1 minuto
+
+Requiere **JDK 21** (para compilar *y* ejecutar; con un JDK por defecto < 21 el build usa Maven
+Toolchains, pero el jar corre sobre Java 21).
+
+```bash
+mvn -DskipTests package                                           # compila el jar
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar                      # dashboard: http://localhost:8080
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/order-api.yaml   # o por CLI
+```
+
+En el dashboard: elegí una topología (o **pegá/subí tu propio YAML**), sumá un fallo opcional
+(botón *Tumbar api-1* o un spec como `crash:api-1:20:15`), y dale **Correr**. Compará `order-api`
+con `resilient-order-api` para ver el CircuitBreaker en acción.
+
 ---
 
 ## Estado
