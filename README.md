@@ -114,6 +114,10 @@ docker compose up --build
 La imagen es multi-etapa (compila con Maven+JDK 21, corre sobre un JRE 21); no necesitás Java 21
 instalado localmente para usarla.
 
+En el dashboard podés correr una de las topologías de ejemplo **o cargar la tuya**: desplegá
+*"…o usá tu propio YAML"*, pegá o subí tu archivo, y corré. También por CLI:
+`java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run mi-topologia.yaml`.
+
 ## Calidad y gates
 
 | Gate | Herramienta | Umbral |

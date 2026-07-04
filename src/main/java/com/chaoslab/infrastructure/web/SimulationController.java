@@ -8,6 +8,8 @@ import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.infrastructure.cli.FaultSpecParser;
 import com.chaoslab.infrastructure.yaml.TopologyValidationException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +43,13 @@ public class SimulationController {
         this.loader = Objects.requireNonNull(loader);
     }
 
-    /** Petición de simulación: topología, semilla opcional y fallos opcionales (sintaxis --fault). */
-    public record RunRequest(String topology, Long seed, List<String> faults) {
+    private static final int MAX_YAML_CHARS = 200_000;
+
+    /**
+     * Petición de simulación. Se corre {@code yaml} (contenido crudo pegado/subido) si viene;
+     * si no, la topología de ejemplo {@code topology}. Semilla y fallos (sintaxis --fault) opcionales.
+     */
+    public record RunRequest(String topology, String yaml, Long seed, List<String> faults) {
     }
 
     @GetMapping("/topologies")
@@ -52,10 +59,10 @@ public class SimulationController {
 
     @PostMapping("/run")
     public SimulationResponse run(@RequestBody RunRequest request) throws IOException {
-        if (request == null || request.topology() == null || request.topology().isBlank()) {
-            throw new IllegalArgumentException("falta el campo 'topology'");
+        if (request == null) {
+            throw new IllegalArgumentException("cuerpo de la petición vacío");
         }
-        Path file = catalog.materialize(request.topology());
+        Path file = resolveTopologyFile(request);
         List<Fault> faults = new ArrayList<>();
         List<String> specs = request.faults();
         if (specs != null) {
@@ -68,6 +75,24 @@ public class SimulationController {
         LoadedScenario scenario = loader.load(file);
         SimulationReport report = useCase.run(file, seed, faults);
         return new SimulationResponse(TopologyView.from(scenario.topology()), report);
+    }
+
+    /** Materializa un archivo de topología desde el YAML crudo de la petición o desde el catálogo. */
+    private Path resolveTopologyFile(RunRequest request) throws IOException {
+        String yaml = request.yaml();
+        if (yaml != null && !yaml.isBlank()) {
+            if (yaml.length() > MAX_YAML_CHARS) {
+                throw new IllegalArgumentException("el YAML supera el límite de " + MAX_YAML_CHARS + " caracteres");
+            }
+            Path temp = Files.createTempFile("chaoslab-upload-", ".yaml");
+            temp.toFile().deleteOnExit();
+            Files.writeString(temp, yaml, StandardCharsets.UTF_8);
+            return temp;
+        }
+        if (request.topology() == null || request.topology().isBlank()) {
+            throw new IllegalArgumentException("indicá una topología ('topology') o pegá tu YAML ('yaml')");
+        }
+        return catalog.materialize(request.topology());
     }
 
     @ExceptionHandler({TopologyValidationException.class, IllegalArgumentException.class})

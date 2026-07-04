@@ -22,6 +22,13 @@
       <label for="topology">Topología</label>
       <select id="topology" name="topology"></select>
 
+      <details class="own-yaml">
+        <summary>…o usá tu propio YAML</summary>
+        <input id="yaml-file" type="file" accept=".yaml,.yml,.txt" aria-label="Subir archivo YAML">
+        <textarea id="yaml" rows="7" placeholder="Pegá acá tu topología YAML…" spellcheck="false"></textarea>
+        <p class="hint">Si escribís o subís YAML acá, se usa en lugar de la topología de arriba.</p>
+      </details>
+
       <label for="seed">Semilla <span class="hint">(opcional)</span></label>
       <input id="seed" name="seed" type="number" inputmode="numeric" placeholder="del YAML">
 
