@@ -11,11 +11,14 @@ import java.util.List;
  * @param failedSoFar     requests fallidos hasta el instante
  * @param latencyP95Millis percentil 95 de latencia hasta el instante
  * @param components      estado de cada componente en el instante
+ * @param circuits        estado de los circuit breakers en el instante
  */
 public record SimulationSnapshot(long atMillis, long completedSoFar, long failedSoFar,
-                                 long latencyP95Millis, List<ComponentSnapshot> components) {
+                                 long latencyP95Millis, List<ComponentSnapshot> components,
+                                 List<BreakerSnapshot> circuits) {
 
     public SimulationSnapshot {
         components = components == null ? List.of() : List.copyOf(components);
+        circuits = circuits == null ? List.of() : List.copyOf(circuits);
     }
 }
