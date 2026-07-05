@@ -46,12 +46,15 @@ public final class MetricsCollector {
     /** Captura una foto del estado actual (métricas acumuladas + estado de cada componente). */
     public void captureSnapshot(TopologyGraph topology, long atMillis) {
         List<ComponentSnapshot> components = new ArrayList<>();
+        List<BreakerSnapshot> circuits = new ArrayList<>();
         for (Component component : topology.components()) {
             components.add(new ComponentSnapshot(
                 component.id(), component.type(), component.health(), component.currentInFlight()));
+            component.resilience().breakers().forEach((target, breaker) ->
+                circuits.add(new BreakerSnapshot(component.id(), target, breaker.state(atMillis))));
         }
         timeline.add(new SimulationSnapshot(
-            atMillis, completed, failed, LatencyStats.from(latencies).p95(), components));
+            atMillis, completed, failed, LatencyStats.from(latencies).p95(), components, circuits));
     }
 
     private long[] counters(String componentId) {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.metrics.MetricsCollector;
 import com.chaoslab.domain.metrics.SimulationReport;
+import com.chaoslab.domain.resilience.CircuitBreakerState;
 import com.chaoslab.domain.resilience.ResiliencePolicy;
 import com.chaoslab.domain.topology.Connection;
 import com.chaoslab.domain.topology.Database;
@@ -58,6 +59,18 @@ class ResilienceTest {
 
         assertThat(report.completedRequests()).isGreaterThanOrEqualTo(95L);
         assertThat(report.failuresByReason()).containsKey(FailureReason.CRASH);
+    }
+
+    @Test
+    void timelineCapturesTheCircuitBreakerOpening() {
+        SimulationReport report = runWithApi1Crashed(loadBalanced(new ResiliencePolicy(0, 1, 3, 1_000_000L)));
+
+        boolean sawGatewayBreakerOpenForApi1 = report.timeline().stream()
+            .flatMap(snapshot -> snapshot.circuits().stream())
+            .anyMatch(circuit -> circuit.fromId().equals("gateway")
+                && circuit.toId().equals("api-1")
+                && circuit.state() != CircuitBreakerState.CLOSED);
+        assertThat(sawGatewayBreakerOpenForApi1).isTrue();
     }
 
     @Test

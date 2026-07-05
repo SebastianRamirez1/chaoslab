@@ -117,7 +117,12 @@ button.ghost:hover { border-color: var(--accent); }
 .node-type { fill: var(--muted); font-size: 9px; }
 .edge { stroke: #3a4757; stroke-width: 1.5; }
 
-.legend { display: flex; gap: var(--space-4); list-style: none; padding: 0; margin: var(--space-3) 0 0; color: var(--muted); font-size: 0.85rem; }
+.playback { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
+.playback button { min-height: 36px; white-space: nowrap; }
+.playback #scrubber { flex: 1; accent-color: var(--accent); }
+
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-4); list-style: none; padding: 0; margin: var(--space-3) 0 0; color: var(--muted); font-size: 0.85rem; }
+.dash-open { display: inline-block; width: 18px; border-top: 2.5px dashed var(--down); vertical-align: middle; }
 .legend li { display: flex; align-items: center; gap: 6px; }
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .dot.up { background: var(--up); }

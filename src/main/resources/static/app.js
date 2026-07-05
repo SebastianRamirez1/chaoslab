@@ -7,7 +7,15 @@ const NODE_RADIUS = 22;
 let requestsChart = null;
 let latencyChart = null;
 let nodeEls = {};
+let edgeEls = {};
 let timer = null;
+let currentTimeline = [];
+let currentEdges = [];
+let currentResp = null;
+let currentIndex = 0;
+let playing = false;
+
+function edgeKey(from, to) { return from + '>' + to; }
 
 function $(id) { return document.getElementById(id); }
 function setText(id, value) { $(id).textContent = value; }
@@ -85,6 +93,7 @@ function renderGraph(view) {
   const svg = $('graph');
   svg.innerHTML = '';
   nodeEls = {};
+  edgeEls = {};
   const pos = layout(view);
 
   view.edges.forEach(e => {
@@ -96,6 +105,7 @@ function renderGraph(view) {
     line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
     line.setAttribute('class', 'edge');
     svg.appendChild(line);
+    edgeEls[edgeKey(e.from, e.to)] = line;
   });
 
   view.nodes.forEach(n => {
@@ -129,6 +139,15 @@ function setHealth(id, health) {
   if (nodeEls[id]) { nodeEls[id].setAttribute('fill', HEALTH_COLOR[health] || '#4b5563'); }
 }
 
+/** Marca una arista como "circuito abierto" (rojo punteado) o normal. */
+function setEdgeOpen(from, to, open) {
+  const el = edgeEls[edgeKey(from, to)];
+  if (!el) { return; }
+  el.setAttribute('stroke', open ? '#f87171' : '#3a4757');
+  el.setAttribute('stroke-width', open ? '2.5' : '1.5');
+  el.setAttribute('stroke-dasharray', open ? '6 4' : '');
+}
+
 function makeChart(canvasId, datasets) {
   return new Chart($(canvasId).getContext('2d'), {
     type: 'line',
@@ -159,46 +178,78 @@ function initCharts() {
   ]);
 }
 
-function resetCharts() {
-  [requestsChart, latencyChart].forEach(c => {
-    if (!c) { return; }
-    c.data.labels = [];
-    c.data.datasets.forEach(d => { d.data = []; });
-    c.update('none');
-  });
+/** Dibuja el estado de la simulación en el snapshot i (salud de nodos, circuitos, métricas, gráficas). */
+function renderFrame(i) {
+  const s = currentTimeline[i];
+  if (!s) { return; }
+  s.components.forEach(c => setHealth(c.id, c.health));
+  currentEdges.forEach(e => setEdgeOpen(e.from, e.to, false));
+  (s.circuits || []).forEach(c => { if (c.state !== 'CLOSED') { setEdgeOpen(c.fromId, c.toId, true); } });
+  $('clock').textContent = (s.atMillis / 1000).toFixed(0) + 's';
+  setText('m-completed', s.completedSoFar);
+  setText('m-failed', s.failedSoFar);
+  const upto = currentTimeline.slice(0, i + 1);
+  const labels = upto.map(x => (x.atMillis / 1000).toFixed(0));
+  if (requestsChart) {
+    requestsChart.data.labels = labels;
+    requestsChart.data.datasets[0].data = upto.map(x => x.completedSoFar);
+    requestsChart.data.datasets[1].data = upto.map(x => x.failedSoFar);
+    requestsChart.update('none');
+  }
+  if (latencyChart) {
+    latencyChart.data.labels = labels;
+    latencyChart.data.datasets[0].data = upto.map(x => x.latencyP95Millis);
+    latencyChart.update('none');
+  }
+  $('scrubber').value = String(i);
+}
+
+function setPlayLabel() {
+  $('playpause').textContent = playing ? '⏸ Pausar' : '▶ Reproducir';
+}
+
+function startPlayback(fromIndex) {
+  clearInterval(timer);
+  currentIndex = fromIndex;
+  playing = true;
+  setPlayLabel();
+  const stepMs = Math.max(25, 320 - Number($('speed').value) * 15);
+  timer = setInterval(() => {
+    if (currentIndex >= currentTimeline.length) {
+      clearInterval(timer);
+      playing = false;
+      setPlayLabel();
+      finalize(currentResp);
+      return;
+    }
+    renderFrame(currentIndex);
+    currentIndex++;
+  }, stepMs);
+}
+
+/** Botón pausar/reproducir. */
+function togglePlay() {
+  if (!currentTimeline.length) { return; }
+  if (playing) {
+    clearInterval(timer);
+    playing = false;
+    setPlayLabel();
+  } else {
+    startPlayback(currentIndex >= currentTimeline.length ? 0 : currentIndex);
+  }
 }
 
 function replay(resp) {
-  const timeline = resp.report.timeline;
-  resetCharts();
+  currentResp = resp;
+  currentTimeline = resp.report.timeline;
+  currentEdges = resp.topology.edges;
   setText('m-generated', resp.report.generatedRequests);
   setText('m-success', '—');
   $('reasons').textContent = '';
-  let i = 0;
-  const speed = Number($('speed').value);
-  const stepMs = Math.max(25, 320 - speed * 15);
-  clearInterval(timer);
-  timer = setInterval(() => {
-    if (i >= timeline.length) { clearInterval(timer); finalize(resp); return; }
-    const s = timeline[i];
-    const seconds = (s.atMillis / 1000).toFixed(0);
-    s.components.forEach(c => setHealth(c.id, c.health));
-    $('clock').textContent = seconds + 's';
-    if (requestsChart) {
-      requestsChart.data.labels.push(seconds);
-      requestsChart.data.datasets[0].data.push(s.completedSoFar);
-      requestsChart.data.datasets[1].data.push(s.failedSoFar);
-      requestsChart.update('none');
-    }
-    if (latencyChart) {
-      latencyChart.data.labels.push(seconds);
-      latencyChart.data.datasets[0].data.push(s.latencyP95Millis);
-      latencyChart.update('none');
-    }
-    setText('m-completed', s.completedSoFar);
-    setText('m-failed', s.failedSoFar);
-    i++;
-  }, stepMs);
+  const scrubber = $('scrubber');
+  scrubber.max = String(Math.max(0, currentTimeline.length - 1));
+  scrubber.value = '0';
+  startPlayback(0);
 }
 
 function finalize(resp) {
@@ -250,6 +301,14 @@ document.addEventListener('DOMContentLoaded', () => {
   $('run').addEventListener('click', run);
   $('topology').addEventListener('change', previewTopology);
   $('yaml').addEventListener('blur', previewTopology);
+  $('playpause').addEventListener('click', togglePlay);
+  $('scrubber').addEventListener('input', () => {
+    if (!currentTimeline.length) { return; }
+    clearInterval(timer);
+    playing = false;
+    setPlayLabel();
+    renderFrame(Number($('scrubber').value));
+  });
   document.querySelectorAll('.quick button').forEach(btn => {
     btn.addEventListener('click', () => { $('fault').value = btn.dataset.fault; });
   });
