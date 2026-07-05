@@ -68,4 +68,9 @@ public final class ResiliencePolicy {
     public CircuitBreaker breakerFor(String targetId) {
         return breakers.computeIfAbsent(targetId, k -> new CircuitBreaker(breakerThreshold, breakerCooldownMillis));
     }
+
+    /** Breakers ya ejercitados, por destino (vista de solo lectura, para observabilidad). */
+    public Map<String, CircuitBreaker> breakers() {
+        return Map.copyOf(breakers);
+    }
 }

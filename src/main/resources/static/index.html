@@ -51,10 +51,16 @@
     <section class="panel graph-panel" aria-labelledby="graph-title">
       <h2 id="graph-title">Topología <span id="clock" class="clock"></span></h2>
       <svg id="graph" viewBox="0 0 640 360" role="img" aria-label="Grafo de la topología"></svg>
+      <div class="playback">
+        <button id="playpause" type="button" class="ghost">▶ Reproducir</button>
+        <input id="scrubber" type="range" min="0" max="0" value="0"
+               aria-label="Línea de tiempo de la simulación">
+      </div>
       <ul class="legend" aria-hidden="true">
         <li><span class="dot up"></span> UP</li>
         <li><span class="dot degraded"></span> DEGRADED</li>
         <li><span class="dot down"></span> DOWN</li>
+        <li><span class="dash-open"></span> circuito abierto</li>
       </ul>
     </section>
 
