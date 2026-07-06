@@ -1,9 +1,9 @@
 package com.chaoslab.infrastructure.cli;
 
 import com.chaoslab.application.RunSimulationUseCase;
+import com.chaoslab.application.ScenarioResult;
 import com.chaoslab.domain.engine.SimulationLimitExceededException;
 import com.chaoslab.domain.fault.Fault;
-import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.infrastructure.yaml.TopologyValidationException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -43,9 +43,11 @@ public final class RunCommand implements Callable<Integer> {
             for (int i = 0; i < faultSpecs.size(); i++) {
                 faults.add(FaultSpecParser.parse(faultSpecs.get(i), i));
             }
-            SimulationReport report = useCase.run(topologyFile, override, faults);
-            printer.print(report);
-            return 0;
+            ScenarioResult result = useCase.run(topologyFile, override, faults);
+            printer.print(result.report());
+            printer.printHypothesis(result.hypothesis());
+            // Exit code 1 = la hipótesis de estado estable fue refutada (falla el build en CI).
+            return result.hypothesis().satisfied() ? 0 : 1;
         } catch (TopologyValidationException | IllegalArgumentException e) {
             System.err.println("Entrada inválida: " + e.getMessage());
             return 2;

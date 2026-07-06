@@ -54,6 +54,7 @@ async function previewTopology() {
     renderGraph(data);
     data.nodes.forEach(n => setHealth(n.id, 'UP'));
     $('clock').textContent = '';
+    $('hypothesis').hidden = true; // limpiar el veredicto de una corrida previa
   } catch (e) {
     status('Error al dibujar la topología: ' + e.message);
   }
@@ -240,6 +241,35 @@ function togglePlay() {
   }
 }
 
+// Símbolo legible para cada comparador (el JSON trae el nombre del enum: GTE, LTE, …).
+const COMPARISON_SYMBOL = { GTE: '≥', LTE: '≤', GT: '>', LT: '<', EQ: '=' };
+
+/** Muestra enteros sin decimales y fracciones con 3 dígitos (umbrales/tasas). */
+function fmtNum(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3);
+}
+
+/** Pinta el veredicto de la hipótesis de estado estable (o lo oculta si no fue declarada). */
+function renderHypothesis(hyp) {
+  const box = $('hypothesis');
+  if (!hyp || !hyp.declared) { box.hidden = true; return; }
+  box.hidden = false;
+  const badge = $('hyp-badge');
+  badge.textContent = hyp.satisfied ? 'PASA' : 'FALLA';
+  badge.className = 'badge ' + (hyp.satisfied ? 'pass' : 'fail');
+  const list = $('hyp-list');
+  list.innerHTML = '';
+  (hyp.results || []).forEach(r => {
+    const li = document.createElement('li');
+    li.className = r.satisfied ? 'ok' : 'no';
+    const sym = COMPARISON_SYMBOL[r.comparison] || r.comparison;
+    li.innerHTML = '<span class="mark">' + (r.satisfied ? '✓' : '✗') + '</span>'
+      + '<span>' + r.metric.toLowerCase() + ' ' + sym + ' ' + fmtNum(r.threshold)
+      + ' (obs. ' + fmtNum(r.actual) + ')</span>';
+    list.appendChild(li);
+  });
+}
+
 function replay(resp) {
   currentResp = resp;
   currentTimeline = resp.report.timeline;
@@ -247,6 +277,7 @@ function replay(resp) {
   setText('m-generated', resp.report.generatedRequests);
   setText('m-success', '—');
   $('reasons').textContent = '';
+  renderHypothesis(resp.hypothesis);
   const scrubber = $('scrubber');
   scrubber.max = String(Math.max(0, currentTimeline.length - 1));
   scrubber.value = '0';

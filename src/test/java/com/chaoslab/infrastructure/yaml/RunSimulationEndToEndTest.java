@@ -3,6 +3,7 @@ package com.chaoslab.infrastructure.yaml;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.chaoslab.application.RunSimulationUseCase;
+import com.chaoslab.application.ScenarioResult;
 import com.chaoslab.domain.engine.SimulationLimits;
 import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.fault.Fault;
@@ -55,11 +56,11 @@ class RunSimulationEndToEndTest {
         RunSimulationUseCase useCase = useCase();
         Path file = topologyFile();
 
-        SimulationReport first = useCase.run(file, OptionalLong.empty(), List.of());
-        SimulationReport second = useCase.run(file, OptionalLong.empty(), List.of());
+        ScenarioResult first = useCase.run(file, OptionalLong.empty(), List.of());
+        ScenarioResult second = useCase.run(file, OptionalLong.empty(), List.of());
 
-        assertThat(first.generatedRequests()).isPositive();
-        assertThat(first.completedRequests()).isPositive();
+        assertThat(first.report().generatedRequests()).isPositive();
+        assertThat(first.report().completedRequests()).isPositive();
         assertThat(first).isEqualTo(second);
     }
 
@@ -68,8 +69,8 @@ class RunSimulationEndToEndTest {
         RunSimulationUseCase useCase = useCase();
         Path file = topologyFile();
 
-        SimulationReport withSeed1 = useCase.run(file, OptionalLong.of(1L), List.of());
-        SimulationReport withSeed2 = useCase.run(file, OptionalLong.of(2L), List.of());
+        ScenarioResult withSeed1 = useCase.run(file, OptionalLong.of(1L), List.of());
+        ScenarioResult withSeed2 = useCase.run(file, OptionalLong.of(2L), List.of());
 
         assertThat(withSeed1).isNotEqualTo(withSeed2);
     }
@@ -98,10 +99,44 @@ class RunSimulationEndToEndTest {
         Files.writeString(resilient, RESILIENT_YAML);
         List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
 
-        SimulationReport report = useCase.run(resilient, OptionalLong.empty(), crash);
+        SimulationReport report = useCase.run(resilient, OptionalLong.empty(), crash).report();
 
         // Con el breaker en el gateway, casi todo completa pese a api-1 caída (reenruta a api-2).
         assertThat(report.successRate()).isGreaterThan(0.95);
+    }
+
+    private static final String YAML_WITH_HYPOTHESIS = YAML + """
+        steady_state:
+          - { metric: success_rate, comparison: ">=", threshold: 0.99 }
+          - { metric: failed_requests, comparison: "==", threshold: 0 }
+        """;
+
+    @Test
+    void steadyStateHypothesisPassesOnAHealthyRun() throws IOException {
+        RunSimulationUseCase useCase = useCase();
+        Path file = tempDir.resolve("with-hypothesis.yaml");
+        Files.writeString(file, YAML_WITH_HYPOTHESIS);
+
+        ScenarioResult result = useCase.run(file, OptionalLong.empty(), List.of());
+
+        // Sin fallos, la corrida cumple sus SLOs declarados.
+        assertThat(result.report().failedRequests()).isZero();
+        assertThat(result.hypothesis().declared()).isTrue();
+        assertThat(result.hypothesis().satisfied()).isTrue();
+    }
+
+    @Test
+    void steadyStateHypothesisIsRefutedWhenChaosBreaksTheSlo() throws IOException {
+        RunSimulationUseCase useCase = useCase();
+        Path file = tempDir.resolve("with-hypothesis.yaml");
+        Files.writeString(file, YAML_WITH_HYPOTHESIS);
+        List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
+
+        ScenarioResult result = useCase.run(file, OptionalLong.empty(), crash);
+
+        // La caída de api-1 hace fallar requests: la hipótesis (éxito >= 0.99, 0 fallos) se refuta.
+        assertThat(result.report().failedRequests()).isPositive();
+        assertThat(result.hypothesis().satisfied()).isFalse();
     }
 
     @Test
@@ -110,9 +145,9 @@ class RunSimulationEndToEndTest {
         Path file = topologyFile();
 
         // Sin fallo: todo completa. Con CrashFault en una réplica: ~la mitad falla por CRASH.
-        SimulationReport healthy = useCase.run(file, OptionalLong.empty(), List.of());
+        SimulationReport healthy = useCase.run(file, OptionalLong.empty(), List.of()).report();
         List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
-        SimulationReport crashed = useCase.run(file, OptionalLong.empty(), crash);
+        SimulationReport crashed = useCase.run(file, OptionalLong.empty(), crash).report();
 
         assertThat(healthy.failedRequests()).isZero();
         assertThat(crashed.failedRequests()).isPositive();

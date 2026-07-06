@@ -138,6 +138,30 @@ button.ghost:hover { border-color: var(--accent); }
 .chart-box { margin-bottom: var(--space-4); }
 .reasons { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; }
 
+.hypothesis {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #0d1218;
+}
+.hypothesis-verdict { margin: 0; font-weight: 600; display: flex; align-items: center; gap: var(--space-2); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.badge.pass { background: rgba(52, 211, 153, 0.18); color: var(--up); }
+.badge.fail { background: rgba(248, 113, 113, 0.18); color: var(--down); }
+.hypothesis-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; font-size: 0.85rem; }
+.hypothesis-list li { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hypothesis-list li .mark { font-weight: 700; }
+.hypothesis-list li.ok .mark { color: var(--up); }
+.hypothesis-list li.no .mark { color: var(--down); }
+
 @media (max-width: 1024px) {
   .layout { grid-template-columns: 1fr; }
 }

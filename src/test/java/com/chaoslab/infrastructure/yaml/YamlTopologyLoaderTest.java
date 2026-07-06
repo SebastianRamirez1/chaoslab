@@ -202,6 +202,51 @@ class YamlTopologyLoaderTest {
     }
 
     @Test
+    void loadsSteadyStateHypothesis() throws IOException {
+        String yaml = VALID + """
+            steady_state:
+              - { metric: success_rate, comparison: ">=", threshold: 0.99 }
+              - { metric: p95_latency_ms, comparison: lte, threshold: 200 }
+            """;
+
+        LoadedScenario scenario = loader.load(write(yaml));
+
+        assertThat(scenario.hypothesis().isDeclared()).isTrue();
+        assertThat(scenario.hypothesis().invariants()).hasSize(2);
+    }
+
+    @Test
+    void topologyWithoutHypothesisHasNoInvariants() throws IOException {
+        LoadedScenario scenario = loader.load(write(VALID));
+
+        assertThat(scenario.hypothesis().isDeclared()).isFalse();
+    }
+
+    @Test
+    void rejectsUnknownMetricInHypothesis() throws IOException {
+        String yaml = VALID + """
+            steady_state:
+              - { metric: throughput, comparison: ">=", threshold: 1 }
+            """;
+
+        assertThatThrownBy(() -> loader.load(write(yaml)))
+            .isInstanceOf(TopologyValidationException.class)
+            .hasMessageContaining("throughput");
+    }
+
+    @Test
+    void rejectsNonNumericThresholdInHypothesis() throws IOException {
+        String yaml = VALID + """
+            steady_state:
+              - { metric: success_rate, comparison: ">=", threshold: "casi" }
+            """;
+
+        assertThatThrownBy(() -> loader.load(write(yaml)))
+            .isInstanceOf(TopologyValidationException.class)
+            .hasMessageContaining("threshold");
+    }
+
+    @Test
     void rejectsFaultWithUnknownTarget() throws IOException {
         String yaml = """
             name: t

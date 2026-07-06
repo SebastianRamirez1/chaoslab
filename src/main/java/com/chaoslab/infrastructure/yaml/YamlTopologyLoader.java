@@ -7,6 +7,10 @@ import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.fault.LatencyFault;
 import com.chaoslab.domain.fault.NetworkPartition;
+import com.chaoslab.domain.hypothesis.Comparison;
+import com.chaoslab.domain.hypothesis.Invariant;
+import com.chaoslab.domain.hypothesis.Metric;
+import com.chaoslab.domain.hypothesis.SteadyStateHypothesis;
 import com.chaoslab.domain.resilience.ResiliencePolicy;
 import com.chaoslab.domain.topology.AbstractComponent;
 import com.chaoslab.domain.topology.Component;
@@ -45,6 +49,7 @@ public final class YamlTopologyLoader implements TopologyLoader {
     private static final int MAX_BYTES = 1_048_576;
     private static final int MAX_NESTING_DEPTH = 50;
     private static final int MAX_ALIASES = 50;
+    private static final int MAX_INVARIANTS = 50;
 
     private final SimulationLimits limits;
 
@@ -69,7 +74,8 @@ public final class YamlTopologyLoader implements TopologyLoader {
             Workload workload = parseWorkload(root);
             TopologyGraph topology = TopologyGraph.of(name, components, connections);
             List<Fault> faults = parseFaults(root, topology);
-            return new LoadedScenario(topology, workload, seed, faults);
+            SteadyStateHypothesis hypothesis = parseHypothesis(root);
+            return new LoadedScenario(topology, workload, seed, faults, hypothesis);
         } catch (IllegalArgumentException e) {
             // Mensajes de invariantes del dominio (rangos, referencias) -> error de validación.
             throw new TopologyValidationException(e.getMessage(), e);
@@ -254,6 +260,33 @@ public final class YamlTopologyLoader implements TopologyLoader {
         return faults;
     }
 
+    private SteadyStateHypothesis parseHypothesis(Map<String, Object> root) {
+        Object raw = root.get("steady_state");
+        if (raw == null) {
+            return SteadyStateHypothesis.none();
+        }
+        List<?> list = reqList(raw, "steady_state");
+        if (list.size() > MAX_INVARIANTS) {
+            throw new TopologyValidationException(
+                "demasiados invariantes en 'steady_state': " + list.size() + " (máximo " + MAX_INVARIANTS + ")");
+        }
+        List<Invariant> invariants = new ArrayList<>();
+        for (Object element : list) {
+            Map<String, Object> map = asMap(element, "un invariante de 'steady_state'");
+            String metricKey = reqString(map, "metric", "un invariante de 'steady_state'");
+            String ctx = "el invariante de '" + metricKey + "'";
+            String comparisonToken = reqString(map, "comparison", ctx);
+            double threshold = reqDouble(map, "threshold", ctx);
+            try {
+                invariants.add(new Invariant(
+                    Metric.fromKey(metricKey), Comparison.fromToken(comparisonToken), threshold));
+            } catch (IllegalArgumentException e) {
+                throw new TopologyValidationException(e.getMessage(), e);
+            }
+        }
+        return new SteadyStateHypothesis(invariants);
+    }
+
     private String existingTarget(Map<String, Object> map, String faultId, TopologyGraph topology) {
         String target = reqString(map, "target", "el fallo '" + faultId + "'");
         if (!topology.contains(target)) {
@@ -339,6 +372,21 @@ public final class YamlTopologyLoader implements TopologyLoader {
             return ((Number) value).longValue();
         }
         throw new TopologyValidationException("'" + key + "' en " + ctx + " debe ser un entero");
+    }
+
+    private static double reqDouble(Map<String, Object> map, String key, String ctx) {
+        Object value = map.get(key);
+        if (value == null) {
+            throw new TopologyValidationException("falta '" + key + "' en " + ctx);
+        }
+        if (value instanceof Number number) {
+            double result = number.doubleValue();
+            if (!Double.isFinite(result)) {
+                throw new TopologyValidationException("'" + key + "' en " + ctx + " debe ser un número finito");
+            }
+            return result;
+        }
+        throw new TopologyValidationException("'" + key + "' en " + ctx + " debe ser un número");
     }
 
     private static long optLong(Map<String, Object> map, String key, long fallback) {

@@ -42,3 +42,8 @@ workload:
 
 faults:
   - { type: crash, target: api-1, at_second: 20, duration_s: 15 }
+
+# Hipótesis de estado estable (el "oráculo" del caos): el SLO que la corrida debe sostener.
+# Con el CircuitBreaker el diseño la CUMPLE pese a la caída de api-1. Compará con order-api.yaml.
+steady_state:
+  - { metric: success_rate, comparison: ">=", threshold: 0.99 }
