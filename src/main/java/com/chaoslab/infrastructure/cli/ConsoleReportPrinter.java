@@ -4,6 +4,7 @@ import com.chaoslab.domain.hypothesis.HypothesisReport;
 import com.chaoslab.domain.hypothesis.InvariantResult;
 import com.chaoslab.domain.metrics.ComponentReport;
 import com.chaoslab.domain.metrics.LatencyStats;
+import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
 import java.util.Locale;
 
@@ -13,6 +14,26 @@ public final class ConsoleReportPrinter {
     /** Imprime el reporte en la salida estándar. */
     public void print(SimulationReport report) {
         System.out.print(format(report));
+    }
+
+    /** Imprime las métricas de resiliencia derivadas de la corrida. */
+    public void printResilience(ResilienceMetrics metrics) {
+        System.out.print(formatResilience(metrics));
+    }
+
+    /** Formatea las métricas de resiliencia como texto legible. */
+    public String formatResilience(ResilienceMetrics m) {
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%nresiliencia:%n"));
+        out.append(String.format(Locale.ROOT, "  disponibilidad=%.1f%%   MTTR=%.1fs   "
+                + "peor caída=%.1fs   éxito en el peor segundo=%.1f%%%n",
+            m.availability() * 100.0, m.meanTimeToRecoveryMillis() / 1000.0,
+            m.longestDowntimeMillis() / 1000.0, m.worstWindowSuccessRate() * 100.0));
+        if (m.timeToFirstBreakerTripMillis() >= 0) {
+            out.append(String.format(Locale.ROOT, "  breaker abrió por primera vez en t=%.1fs%n",
+                m.timeToFirstBreakerTripMillis() / 1000.0));
+        }
+        return out.toString();
     }
 
     /** Imprime el veredicto de la hipótesis de estado estable (si fue declarada). */

@@ -83,8 +83,8 @@ public class SimulationController {
 
         LoadedScenario scenario = loader.load(file);
         ScenarioResult result = useCase.run(file, seed, faults);
-        return new SimulationResponse(
-            TopologyView.from(scenario.topology()), result.report(), result.hypothesis());
+        return new SimulationResponse(TopologyView.from(scenario.topology()),
+            result.report(), result.hypothesis(), result.resilience());
     }
 
     /** Materializa un archivo de topología desde el YAML crudo de la petición o desde el catálogo. */
