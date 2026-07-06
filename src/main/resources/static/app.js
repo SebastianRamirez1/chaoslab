@@ -55,6 +55,7 @@ async function previewTopology() {
     data.nodes.forEach(n => setHealth(n.id, 'UP'));
     $('clock').textContent = '';
     $('hypothesis').hidden = true; // limpiar el veredicto de una corrida previa
+    $('resilience').hidden = true;
   } catch (e) {
     status('Error al dibujar la topología: ' + e.message);
   }
@@ -270,6 +271,21 @@ function renderHypothesis(hyp) {
   });
 }
 
+/** Formatea milisegundos como segundos con un decimal. */
+function fmtSecs(ms) { return (ms / 1000).toFixed(1) + 's'; }
+
+/** Pinta las métricas de resiliencia derivadas de la corrida (o las oculta si no hay). */
+function renderResilience(m) {
+  const box = $('resilience');
+  if (!m) { box.hidden = true; return; }
+  box.hidden = false;
+  setText('r-availability', (m.availability * 100).toFixed(1) + '%');
+  setText('r-mttr', m.meanTimeToRecoveryMillis > 0 ? fmtSecs(m.meanTimeToRecoveryMillis) : '—');
+  setText('r-worst', (m.worstWindowSuccessRate * 100).toFixed(1) + '%');
+  setText('r-detect', m.timeToFirstBreakerTripMillis >= 0
+    ? fmtSecs(m.timeToFirstBreakerTripMillis) : 'sin breaker');
+}
+
 function replay(resp) {
   currentResp = resp;
   currentTimeline = resp.report.timeline;
@@ -278,6 +294,7 @@ function replay(resp) {
   setText('m-success', '—');
   $('reasons').textContent = '';
   renderHypothesis(resp.hypothesis);
+  renderResilience(resp.resilience);
   const scrubber = $('scrubber');
   scrubber.max = String(Math.max(0, currentTimeline.length - 1));
   scrubber.value = '0';

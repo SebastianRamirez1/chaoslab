@@ -162,6 +162,10 @@ button.ghost:hover { border-color: var(--accent); }
 .hypothesis-list li.ok .mark { color: var(--up); }
 .hypothesis-list li.no .mark { color: var(--down); }
 
+.resilience { margin: 0 0 var(--space-4); }
+.section-title { margin: 0 0 var(--space-2); font-weight: 600; color: var(--muted); font-size: 0.9rem; }
+.resilience .summary dd { font-size: 1.1rem; }
+
 @media (max-width: 1024px) {
   .layout { grid-template-columns: 1fr; }
 }

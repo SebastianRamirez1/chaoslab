@@ -7,6 +7,7 @@ import com.chaoslab.application.ScenarioResult;
 import com.chaoslab.domain.engine.SimulationLimits;
 import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.fault.Fault;
+import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.domain.topology.FailureReason;
 import java.io.IOException;
@@ -137,6 +138,25 @@ class RunSimulationEndToEndTest {
         // La caída de api-1 hace fallar requests: la hipótesis (éxito >= 0.99, 0 fallos) se refuta.
         assertThat(result.report().failedRequests()).isPositive();
         assertThat(result.hypothesis().satisfied()).isFalse();
+    }
+
+    @Test
+    void resilienceMetricsQuantifyTheBreakerAdvantage() throws IOException {
+        RunSimulationUseCase useCase = useCase();
+        List<Fault> crash = List.of(new CrashFault("crash-api1", "api-1", 0L, 0L));
+        Path base = topologyFile(); // order-api, sin breaker
+        Path resilient = tempDir.resolve("resilient.yaml");
+        Files.writeString(resilient, RESILIENT_YAML);
+
+        ResilienceMetrics withoutBreaker = useCase.run(base, OptionalLong.empty(), crash).resilience();
+        ResilienceMetrics withBreaker = useCase.run(resilient, OptionalLong.empty(), crash).resilience();
+
+        // El breaker detecta el fallo (abre) y sostiene la tasa de éxito en el peor segundo;
+        // sin breaker no hay detección y el peor segundo cae mucho más.
+        assertThat(withBreaker.timeToFirstBreakerTripMillis()).isGreaterThanOrEqualTo(0L);
+        assertThat(withoutBreaker.timeToFirstBreakerTripMillis()).isEqualTo(-1L);
+        assertThat(withBreaker.worstWindowSuccessRate())
+            .isGreaterThan(withoutBreaker.worstWindowSuccessRate());
     }
 
     @Test
