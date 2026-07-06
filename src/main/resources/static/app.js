@@ -139,13 +139,14 @@ function setHealth(id, health) {
   if (nodeEls[id]) { nodeEls[id].setAttribute('fill', HEALTH_COLOR[health] || '#4b5563'); }
 }
 
-/** Marca una arista como "circuito abierto" (rojo punteado) o normal. */
+/** Marca una arista como "circuito abierto" (rojo punteado) o normal.
+ *  Usa estilo inline porque una regla CSS de clase le gana a los atributos de presentación SVG. */
 function setEdgeOpen(from, to, open) {
   const el = edgeEls[edgeKey(from, to)];
   if (!el) { return; }
-  el.setAttribute('stroke', open ? '#f87171' : '#3a4757');
-  el.setAttribute('stroke-width', open ? '2.5' : '1.5');
-  el.setAttribute('stroke-dasharray', open ? '6 4' : '');
+  el.style.stroke = open ? '#f87171' : '';
+  el.style.strokeWidth = open ? '2.5' : '';
+  el.style.strokeDasharray = open ? '6 4' : '';
 }
 
 function makeChart(canvasId, datasets) {
