@@ -1,9 +1,19 @@
 package com.chaoslab.infrastructure.cli;
 
+import com.chaoslab.domain.fault.CrashFault;
+import com.chaoslab.domain.fault.Fault;
+import com.chaoslab.domain.fault.LatencyFault;
+import com.chaoslab.domain.fault.NetworkPartition;
+import com.chaoslab.domain.hypothesis.HypothesisReport;
+import com.chaoslab.domain.hypothesis.InvariantResult;
 import com.chaoslab.domain.metrics.ComponentReport;
 import com.chaoslab.domain.metrics.LatencyStats;
+import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
+import com.chaoslab.domain.search.ChaosSearchResult;
+import com.chaoslab.domain.search.Counterexample;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /** Presenta un {@link SimulationReport} en consola, en texto legible. */
 public final class ConsoleReportPrinter {
@@ -11,6 +21,106 @@ public final class ConsoleReportPrinter {
     /** Imprime el reporte en la salida estándar. */
     public void print(SimulationReport report) {
         System.out.print(format(report));
+    }
+
+    /** Imprime las métricas de resiliencia derivadas de la corrida. */
+    public void printResilience(ResilienceMetrics metrics) {
+        System.out.print(formatResilience(metrics));
+    }
+
+    /** Formatea las métricas de resiliencia como texto legible. */
+    public String formatResilience(ResilienceMetrics m) {
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%nresiliencia:%n"));
+        out.append(String.format(Locale.ROOT, "  disponibilidad=%.1f%%   MTTR=%.1fs   "
+                + "peor caída=%.1fs   éxito en el peor segundo=%.1f%%%n",
+            m.availability() * 100.0, m.meanTimeToRecoveryMillis() / 1000.0,
+            m.longestDowntimeMillis() / 1000.0, m.worstWindowSuccessRate() * 100.0));
+        if (m.timeToFirstBreakerTripMillis() >= 0) {
+            out.append(String.format(Locale.ROOT, "  breaker abrió por primera vez en t=%.1fs%n",
+                m.timeToFirstBreakerTripMillis() / 1000.0));
+        }
+        return out.toString();
+    }
+
+    /** Imprime el resultado de una búsqueda de caos (mini-DST). */
+    public void printSearch(ChaosSearchResult result) {
+        System.out.print(formatSearch(result));
+    }
+
+    /** Formatea el resultado de la búsqueda como texto legible. */
+    public String formatSearch(ChaosSearchResult result) {
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%n=== Búsqueda de caos (mini-DST) ===%n"));
+        out.append(String.format(Locale.ROOT, "escenarios evaluados: %d%n", result.scenariosEvaluated()));
+        if (!result.refuted()) {
+            out.append(String.format(Locale.ROOT,
+                "veredicto: la hipótesis RESISTIÓ todos los escenarios probados (no se halló contraejemplo)%n"));
+            return out.toString();
+        }
+        Counterexample ce = result.minimal();
+        out.append(String.format(Locale.ROOT,
+            "veredicto: hipótesis REFUTADA — escenario mínimo hallado%n"));
+        out.append(String.format(Locale.ROOT, "  semilla: %d%n", ce.seed()));
+        out.append(String.format(Locale.ROOT, "  fallos (%d): %s%n",
+            ce.faultCount(), describeFaults(ce)));
+        out.append(String.format(Locale.ROOT, "  éxito en el peor segundo: %.1f%%%n",
+            ce.worstWindowSuccessRate() * 100.0));
+        for (InvariantResult r : ce.hypothesis().results()) {
+            out.append(String.format(Locale.ROOT, "  [%s] %s %s %s (observado %s)%n",
+                r.satisfied() ? "OK" : "X", r.metric().key(), r.comparison().symbol(),
+                trim(r.threshold()), trim(r.actual())));
+        }
+        return out.toString();
+    }
+
+    private static String describeFaults(Counterexample ce) {
+        return ce.faults().stream().map(ConsoleReportPrinter::describeFault).collect(Collectors.joining(", "));
+    }
+
+    /** Descripción corta de un fallo para el reporte de búsqueda. */
+    private static String describeFault(Fault fault) {
+        return switch (fault) {
+            case CrashFault crash -> "crash " + crash.targetId();
+            case LatencyFault latency -> "latency " + latency.targetId() + " +" + latency.extraMillis() + "ms";
+            case NetworkPartition partition -> "partition " + partition.targets();
+        };
+    }
+
+    /** Imprime el veredicto de la hipótesis de estado estable (si fue declarada). */
+    public void printHypothesis(HypothesisReport hypothesis) {
+        String text = formatHypothesis(hypothesis);
+        if (!text.isEmpty()) {
+            System.out.print(text);
+        }
+    }
+
+    /**
+     * Formatea el veredicto de la hipótesis. Devuelve cadena vacía si no se declaró ninguna,
+     * para no ensuciar la salida de corridas exploratorias.
+     */
+    public String formatHypothesis(HypothesisReport hypothesis) {
+        if (hypothesis == null || !hypothesis.declared()) {
+            return "";
+        }
+        // Marcadores ASCII (no ✓/✗) para que se lean bien también en consolas Windows (cp1252).
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%nhipótesis de estado estable: %s%n",
+            hypothesis.satisfied() ? "PASA" : "FALLA"));
+        for (InvariantResult r : hypothesis.results()) {
+            out.append(String.format(Locale.ROOT, "  [%s] %s %s %s (observado %s)%n",
+                r.satisfied() ? "OK" : "X", r.metric().key(), r.comparison().symbol(),
+                trim(r.threshold()), trim(r.actual())));
+        }
+        return out.toString();
+    }
+
+    /** Muestra enteros sin decimales y fracciones con 3 dígitos, para leer bien umbrales y tasas. */
+    private static String trim(double value) {
+        if (Double.isFinite(value) && Double.compare(value, Math.rint(value)) == 0) {
+            return String.format(Locale.ROOT, "%d", (long) value);
+        }
+        return String.format(Locale.ROOT, "%.3f", value);
     }
 
     /** Formatea el reporte como texto (separado de la impresión para poder testearlo). */

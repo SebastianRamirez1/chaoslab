@@ -54,6 +54,8 @@ async function previewTopology() {
     renderGraph(data);
     data.nodes.forEach(n => setHealth(n.id, 'UP'));
     $('clock').textContent = '';
+    $('hypothesis').hidden = true; // limpiar el veredicto de una corrida previa
+    $('resilience').hidden = true;
   } catch (e) {
     status('Error al dibujar la topología: ' + e.message);
   }
@@ -139,13 +141,14 @@ function setHealth(id, health) {
   if (nodeEls[id]) { nodeEls[id].setAttribute('fill', HEALTH_COLOR[health] || '#4b5563'); }
 }
 
-/** Marca una arista como "circuito abierto" (rojo punteado) o normal. */
+/** Marca una arista como "circuito abierto" (rojo punteado) o normal.
+ *  Usa estilo inline porque una regla CSS de clase le gana a los atributos de presentación SVG. */
 function setEdgeOpen(from, to, open) {
   const el = edgeEls[edgeKey(from, to)];
   if (!el) { return; }
-  el.setAttribute('stroke', open ? '#f87171' : '#3a4757');
-  el.setAttribute('stroke-width', open ? '2.5' : '1.5');
-  el.setAttribute('stroke-dasharray', open ? '6 4' : '');
+  el.style.stroke = open ? '#f87171' : '';
+  el.style.strokeWidth = open ? '2.5' : '';
+  el.style.strokeDasharray = open ? '6 4' : '';
 }
 
 function makeChart(canvasId, datasets) {
@@ -239,6 +242,50 @@ function togglePlay() {
   }
 }
 
+// Símbolo legible para cada comparador (el JSON trae el nombre del enum: GTE, LTE, …).
+const COMPARISON_SYMBOL = { GTE: '≥', LTE: '≤', GT: '>', LT: '<', EQ: '=' };
+
+/** Muestra enteros sin decimales y fracciones con 3 dígitos (umbrales/tasas). */
+function fmtNum(value) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3);
+}
+
+/** Pinta el veredicto de la hipótesis de estado estable (o lo oculta si no fue declarada). */
+function renderHypothesis(hyp) {
+  const box = $('hypothesis');
+  if (!hyp || !hyp.declared) { box.hidden = true; return; }
+  box.hidden = false;
+  const badge = $('hyp-badge');
+  badge.textContent = hyp.satisfied ? 'PASA' : 'FALLA';
+  badge.className = 'badge ' + (hyp.satisfied ? 'pass' : 'fail');
+  const list = $('hyp-list');
+  list.innerHTML = '';
+  (hyp.results || []).forEach(r => {
+    const li = document.createElement('li');
+    li.className = r.satisfied ? 'ok' : 'no';
+    const sym = COMPARISON_SYMBOL[r.comparison] || r.comparison;
+    li.innerHTML = '<span class="mark">' + (r.satisfied ? '✓' : '✗') + '</span>'
+      + '<span>' + r.metric.toLowerCase() + ' ' + sym + ' ' + fmtNum(r.threshold)
+      + ' (obs. ' + fmtNum(r.actual) + ')</span>';
+    list.appendChild(li);
+  });
+}
+
+/** Formatea milisegundos como segundos con un decimal. */
+function fmtSecs(ms) { return (ms / 1000).toFixed(1) + 's'; }
+
+/** Pinta las métricas de resiliencia derivadas de la corrida (o las oculta si no hay). */
+function renderResilience(m) {
+  const box = $('resilience');
+  if (!m) { box.hidden = true; return; }
+  box.hidden = false;
+  setText('r-availability', (m.availability * 100).toFixed(1) + '%');
+  setText('r-mttr', m.meanTimeToRecoveryMillis > 0 ? fmtSecs(m.meanTimeToRecoveryMillis) : '—');
+  setText('r-worst', (m.worstWindowSuccessRate * 100).toFixed(1) + '%');
+  setText('r-detect', m.timeToFirstBreakerTripMillis >= 0
+    ? fmtSecs(m.timeToFirstBreakerTripMillis) : 'sin breaker');
+}
+
 function replay(resp) {
   currentResp = resp;
   currentTimeline = resp.report.timeline;
@@ -246,6 +293,8 @@ function replay(resp) {
   setText('m-generated', resp.report.generatedRequests);
   setText('m-success', '—');
   $('reasons').textContent = '';
+  renderHypothesis(resp.hypothesis);
+  renderResilience(resp.resilience);
   const scrubber = $('scrubber');
   scrubber.max = String(Math.max(0, currentTimeline.length - 1));
   scrubber.value = '0';

@@ -2,9 +2,9 @@ package com.chaoslab.infrastructure.web;
 
 import com.chaoslab.application.LoadedScenario;
 import com.chaoslab.application.RunSimulationUseCase;
+import com.chaoslab.application.ScenarioResult;
 import com.chaoslab.application.TopologyLoader;
 import com.chaoslab.domain.fault.Fault;
-import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.infrastructure.cli.FaultSpecParser;
 import com.chaoslab.infrastructure.yaml.TopologyValidationException;
 import java.io.IOException;
@@ -82,8 +82,9 @@ public class SimulationController {
         OptionalLong seed = request.seed() == null ? OptionalLong.empty() : OptionalLong.of(request.seed());
 
         LoadedScenario scenario = loader.load(file);
-        SimulationReport report = useCase.run(file, seed, faults);
-        return new SimulationResponse(TopologyView.from(scenario.topology()), report);
+        ScenarioResult result = useCase.run(file, seed, faults);
+        return new SimulationResponse(TopologyView.from(scenario.topology()),
+            result.report(), result.hypothesis(), result.resilience());
     }
 
     /** Materializa un archivo de topología desde el YAML crudo de la petición o desde el catálogo. */

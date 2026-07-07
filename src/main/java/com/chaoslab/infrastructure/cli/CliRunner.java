@@ -1,5 +1,6 @@
 package com.chaoslab.infrastructure.cli;
 
+import com.chaoslab.application.ChaosSearchUseCase;
 import com.chaoslab.application.RunSimulationUseCase;
 import java.util.Objects;
 import org.springframework.boot.CommandLineRunner;
@@ -15,10 +16,12 @@ import picocli.CommandLine;
 public final class CliRunner implements CommandLineRunner, ExitCodeGenerator {
 
     private final RunSimulationUseCase useCase;
+    private final ChaosSearchUseCase searchUseCase;
     private int exitCode;
 
-    public CliRunner(RunSimulationUseCase useCase) {
+    public CliRunner(RunSimulationUseCase useCase, ChaosSearchUseCase searchUseCase) {
         this.useCase = Objects.requireNonNull(useCase, "useCase");
+        this.searchUseCase = Objects.requireNonNull(searchUseCase, "searchUseCase");
     }
 
     @Override
@@ -29,8 +32,10 @@ public final class CliRunner implements CommandLineRunner, ExitCodeGenerator {
             this.exitCode = 0;
             return;
         }
+        ConsoleReportPrinter printer = new ConsoleReportPrinter();
         CommandLine commandLine = new CommandLine(new ChaosLabCommand())
-            .addSubcommand("run", new RunCommand(useCase, new ConsoleReportPrinter()));
+            .addSubcommand("run", new RunCommand(useCase, printer))
+            .addSubcommand("search", new SearchCommand(searchUseCase, printer));
         this.exitCode = commandLine.execute(args);
     }
 

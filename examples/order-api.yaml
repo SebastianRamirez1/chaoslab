@@ -41,3 +41,8 @@ workload:
 faults:
   - { type: crash,   target: api-1,     at_second: 20, duration_s: 15 }
   - { type: latency, target: orders-db, at_second: 35, duration_s: 10, extra_ms: 300 }
+
+# Hipótesis de estado estable (el "oráculo" del caos): el SLO que la corrida debe sostener.
+# Sin patrones de resiliencia, la caída de api-1 REFUTA la hipótesis (el éxito baja del 99%).
+steady_state:
+  - { metric: success_rate, comparison: ">=", threshold: 0.99 }
