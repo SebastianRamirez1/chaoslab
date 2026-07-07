@@ -1,17 +1,47 @@
+/*
+ * ChaosLab — dashboard con el lenguaje visual de IBM Carbon Design System (tema Gray 100).
+ * Sin build ni CDN: adoptamos a mano los design tokens, la escala de espaciado/tipografía y los
+ * patrones de componente de Carbon (tiles, botones, campos con borde inferior, tags, foco de 2px).
+ * IBM Plex se usa si está disponible; si no, cae a la fuente del sistema (el dashboard es offline).
+ * https://carbondesignsystem.com
+ */
 :root {
-  --bg: #0f1419;
-  --panel: #1a212b;
-  --panel-border: #2a3543;
-  --text: #e6edf3;
-  --muted: #9aa7b4;
-  --accent: #2dd4bf;
-  --accent-strong: #14b8a6;
-  --up: #34d399;
-  --degraded: #fbbf24;
-  --down: #f87171;
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
-  --space-6: 24px; --space-8: 32px;
-  --radius: 10px;
+  /* Backgrounds y capas (Gray 100) */
+  --bg: #161616;
+  --layer-01: #262626;
+  --layer-02: #393939;
+  --field-01: #393939;
+  --border-subtle: #393939;
+  --border-strong: #6f6f6f;
+
+  /* Texto */
+  --text-primary: #f4f4f4;
+  --text-secondary: #c6c6c6;
+  --text-helper: #8d8d8d;
+  --text-on-color: #ffffff;
+
+  /* Interactivo */
+  --interactive: #0f62fe;      /* button primary (blue-60) */
+  --interactive-hover: #0353e9;
+  --interactive-active: #002d9c;
+  --link: #78a9ff;
+  --focus: #ffffff;
+
+  /* Soporte (estado) */
+  --support-success: #42be65;
+  --support-warning: #f1c21b;
+  --support-error: #fa4d56;
+  --support-info: #4589ff;
+
+  /* Escala de espaciado de Carbon */
+  --sp-01: 0.125rem; --sp-02: 0.25rem; --sp-03: 0.5rem; --sp-04: 0.75rem;
+  --sp-05: 1rem; --sp-06: 1.5rem; --sp-07: 2rem; --sp-08: 2.5rem;
+
+  /* Carbon es de esquinas rectas */
+  --radius: 0;
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -19,154 +49,215 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.6;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;   /* body-01 */
+  line-height: 1.375rem;
+  letter-spacing: 0.16px;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* --- Encabezado de página (estilo UI Shell + page header de Carbon) --- */
 .app-header {
-  padding: var(--space-6) var(--space-8) var(--space-4);
+  padding: var(--sp-06) var(--sp-07) var(--sp-05);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.app-header h1 { margin: 0; font-size: 1.6rem; }
-.tagline { margin: var(--space-1) 0 0; color: var(--muted); max-width: 70ch; }
+.app-header h1 {
+  margin: 0;
+  font-size: 1.75rem;    /* heading-04 */
+  font-weight: 400;
+  line-height: 2.25rem;
+  letter-spacing: 0;
+}
+.tagline { margin: var(--sp-03) 0 0; color: var(--text-secondary); max-width: 66ch; }
 
+/* --- Grilla principal --- */
 .layout {
   display: grid;
-  grid-template-columns: 300px 1fr 360px;
-  gap: var(--space-4);
-  padding: 0 var(--space-8) var(--space-8);
+  grid-template-columns: 20rem 1fr 22rem;
+  gap: 1px;                 /* las costuras finas entre tiles evocan la grilla 2x de Carbon */
+  padding: var(--sp-05) var(--sp-07) var(--sp-07);
+  background: var(--bg);
   align-items: start;
 }
 
+/* --- Tile --- */
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
+  background: var(--layer-01);
+  border: none;
   border-radius: var(--radius);
-  padding: var(--space-4);
+  padding: var(--sp-05);
 }
-.panel h2 { margin: 0 0 var(--space-3); font-size: 1.05rem; }
-
-label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: 0.9rem; }
-.hint { color: var(--muted); font-weight: normal; }
-
-select, input[type="number"], input[type="text"] {
-  width: 100%;
-  padding: 10px var(--space-3);
-  background: #0d1218;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 0.95rem;
+.panel h2 {
+  margin: 0 0 var(--sp-05);
+  font-size: 0.875rem;   /* heading-01 */
+  font-weight: 600;
+  line-height: 1.25rem;
 }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
 
-.quick { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+/* --- Labels (label-01) --- */
+label {
+  display: block;
+  margin: var(--sp-05) 0 var(--sp-03);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.32px;
+  color: var(--text-secondary);
+}
+.hint { color: var(--text-helper); font-weight: 400; }
 
-.own-yaml { margin-top: var(--space-3); }
-.own-yaml summary { cursor: pointer; color: var(--accent); font-size: 0.9rem; }
-.own-yaml summary:hover { text-decoration: underline; }
-.own-yaml input[type="file"] { margin: var(--space-2) 0; font-size: 0.8rem; color: var(--muted); }
+/* --- Campos: patrón Carbon (fondo de campo + borde inferior fuerte) --- */
+select,
+input[type="number"],
+input[type="text"],
 textarea {
   width: 100%;
-  padding: 10px var(--space-3);
-  background: #0d1218;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  color: var(--text);
-  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-  font-size: 0.82rem;
+  padding: var(--sp-04) var(--sp-05);
+  background: var(--field-01);
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  border-radius: 0;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  transition: background 110ms, border-color 110ms;
+}
+select, input[type="number"], input[type="text"] { height: 2.5rem; }   /* 40px */
+select:hover, input[type="number"]:hover, input[type="text"]:hover, textarea:hover { background: #474747; }
+select:focus,
+input[type="number"]:focus,
+input[type="text"]:focus,
+textarea:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  border-bottom-color: var(--interactive);
+}
+::placeholder { color: var(--text-helper); }
+
+textarea {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
   line-height: 1.5;
   resize: vertical;
 }
 
+input[type="range"] { width: 100%; accent-color: var(--interactive); height: 2rem; }
+
+.quick { display: flex; flex-wrap: wrap; gap: var(--sp-03); margin-top: var(--sp-03); }
+
+.own-yaml { margin-top: var(--sp-05); }
+.own-yaml summary { cursor: pointer; color: var(--link); font-size: 0.875rem; }
+.own-yaml summary:hover { text-decoration: underline; }
+.own-yaml input[type="file"] {
+  height: auto; background: none; border: none;
+  margin: var(--sp-03) 0; font-size: 0.75rem; color: var(--text-secondary);
+}
+
+/* --- Botones (Carbon: rectos, etiqueta a la izquierda, 48px) --- */
 button {
   font: inherit;
   cursor: pointer;
-  border-radius: 8px;
-  min-height: 44px;
-  padding: 10px var(--space-4);
+  border-radius: var(--radius);
+  min-height: 3rem;              /* 48px */
+  padding: var(--sp-04) var(--sp-06) var(--sp-04) var(--sp-05);
   border: 1px solid transparent;
-  transition: background 160ms ease, border-color 160ms ease;
+  transition: background 110ms, border-color 110ms;
 }
 button.primary {
   width: 100%;
-  margin-top: var(--space-4);
-  background: var(--accent-strong);
-  color: #04201c;
-  font-weight: 600;
+  margin-top: var(--sp-06);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-03);
+  background: var(--interactive);
+  color: var(--text-on-color);
+  font-weight: 400;
 }
-button.primary:hover { background: var(--accent); }
+button.primary:hover { background: var(--interactive-hover); }
+button.primary:active { background: var(--interactive-active); }
+button.primary:disabled { background: #525252; color: #8d8d8d; cursor: not-allowed; }
+
+/* Botón terciario/ghost de Carbon */
 button.ghost {
-  min-height: 36px;
-  padding: 6px var(--space-3);
+  min-height: 2.5rem;
+  padding: var(--sp-03) var(--sp-05);
   background: transparent;
-  border-color: var(--panel-border);
-  color: var(--text);
-  font-size: 0.85rem;
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  font-size: 0.875rem;
 }
-button.ghost:hover { border-color: var(--accent); }
+button.ghost:hover { background: var(--layer-02); border-color: var(--border-strong); }
 
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
-.status { margin: var(--space-3) 0 0; min-height: 1.4em; color: var(--muted); font-size: 0.9rem; }
+.status { margin: var(--sp-05) 0 0; min-height: 1.25rem; color: var(--text-secondary); font-size: 0.75rem; letter-spacing: 0.32px; }
 
-.graph-panel { min-height: 420px; }
-.clock { float: right; color: var(--accent); font-variant-numeric: tabular-nums; font-size: 0.95rem; }
-#graph { width: 100%; height: auto; background: #0d1218; border-radius: 8px; }
-.node-label { fill: var(--text); font-size: 11px; }
-.node-type { fill: var(--muted); font-size: 9px; }
-.edge { stroke: #3a4757; stroke-width: 1.5; }
+/* --- Panel de topología --- */
+.graph-panel { min-height: 26rem; }
+.clock { float: right; color: var(--support-info); font-variant-numeric: tabular-nums; font-size: 0.875rem; }
+#graph { width: 100%; height: auto; background: var(--bg); }
+.node-label { fill: var(--text-primary); font-size: 11px; }
+.node-type { fill: var(--text-helper); font-size: 9px; }
+.edge { stroke: var(--border-strong); stroke-width: 1.5; }
 
-.playback { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); }
-.playback button { min-height: 36px; white-space: nowrap; }
-.playback #scrubber { flex: 1; accent-color: var(--accent); }
+.playback { display: flex; align-items: center; gap: var(--sp-05); margin-top: var(--sp-05); }
+.playback button { min-height: 2.5rem; white-space: nowrap; }
+.playback #scrubber { flex: 1; accent-color: var(--interactive); }
 
-.legend { display: flex; flex-wrap: wrap; gap: var(--space-4); list-style: none; padding: 0; margin: var(--space-3) 0 0; color: var(--muted); font-size: 0.85rem; }
-.dash-open { display: inline-block; width: 18px; border-top: 2.5px dashed var(--down); vertical-align: middle; }
-.legend li { display: flex; align-items: center; gap: 6px; }
+.legend {
+  display: flex; flex-wrap: wrap; gap: var(--sp-05); list-style: none; padding: 0;
+  margin: var(--sp-05) 0 0; color: var(--text-secondary); font-size: 0.75rem;
+}
+.dash-open { display: inline-block; width: 18px; border-top: 2.5px dashed var(--support-error); vertical-align: middle; }
+.legend li { display: flex; align-items: center; gap: var(--sp-03); }
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-.dot.up { background: var(--up); }
-.dot.degraded { background: var(--degraded); }
-.dot.down { background: var(--down); }
+.dot.up { background: var(--support-success); }
+.dot.degraded { background: var(--support-warning); }
+.dot.down { background: var(--support-error); }
 
-.summary { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin: 0 0 var(--space-4); }
-.summary div { background: #0d1218; border-radius: 8px; padding: var(--space-2) var(--space-3); }
-.summary dt { color: var(--muted); font-size: 0.8rem; }
-.summary dd { margin: 2px 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-.accent { color: var(--accent); }
+/* --- Métricas: tiles anidados suben una capa (layer-02) --- */
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 0 0 var(--sp-05); background: var(--bg); }
+.summary div { background: var(--layer-02); padding: var(--sp-04) var(--sp-05); }
+.summary dt { color: var(--text-secondary); font-size: 0.75rem; letter-spacing: 0.32px; }
+.summary dd { margin: var(--sp-02) 0 0; font-size: 1.75rem; font-weight: 300; line-height: 2.25rem; font-variant-numeric: tabular-nums; }
+.accent { color: var(--support-info); }
 
-.chart-box { margin-bottom: var(--space-4); }
-.reasons { color: var(--muted); font-size: 0.85rem; min-height: 1.2em; }
+.chart-box { margin-bottom: var(--sp-05); }
+.reasons { color: var(--text-secondary); font-size: 0.75rem; min-height: 1.2em; }
 
+/* --- Hipótesis de estado estable --- */
 .hypothesis {
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  background: #0d1218;
+  margin: 0 0 var(--sp-05);
+  padding: var(--sp-05);
+  background: var(--layer-02);
 }
-.hypothesis-verdict { margin: 0; font-weight: 600; display: flex; align-items: center; gap: var(--space-2); }
+.hypothesis-verdict { margin: 0; font-weight: 600; display: flex; align-items: center; gap: var(--sp-03); }
+
+/* Tag de Carbon (pill; único elemento redondeado) */
 .badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  padding: 0 var(--sp-03);
+  height: 1.125rem;
+  line-height: 1.125rem;
+  border-radius: 0.9375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.32px;
 }
-.badge.pass { background: rgba(52, 211, 153, 0.18); color: var(--up); }
-.badge.fail { background: rgba(248, 113, 113, 0.18); color: var(--down); }
-.hypothesis-list { list-style: none; margin: var(--space-2) 0 0; padding: 0; font-size: 0.85rem; }
-.hypothesis-list li { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.badge.pass { background: #0e6027; color: #a7f0ba; }   /* Carbon tag green */
+.badge.fail { background: #a2191f; color: #ffd7d9; }   /* Carbon tag red */
+.hypothesis-list { list-style: none; margin: var(--sp-03) 0 0; padding: 0; font-size: 0.8125rem; }
+.hypothesis-list li { display: flex; align-items: baseline; gap: var(--sp-03); color: var(--text-secondary); font-variant-numeric: tabular-nums; padding: var(--sp-01) 0; }
 .hypothesis-list li .mark { font-weight: 700; }
-.hypothesis-list li.ok .mark { color: var(--up); }
-.hypothesis-list li.no .mark { color: var(--down); }
+.hypothesis-list li.ok .mark { color: var(--support-success); }
+.hypothesis-list li.no .mark { color: var(--support-error); }
 
-.resilience { margin: 0 0 var(--space-4); }
-.section-title { margin: 0 0 var(--space-2); font-weight: 600; color: var(--muted); font-size: 0.9rem; }
-.resilience .summary dd { font-size: 1.1rem; }
+.resilience { margin: 0 0 var(--sp-05); }
+.section-title { margin: 0 0 var(--sp-03); font-weight: 600; color: var(--text-secondary); font-size: 0.75rem; letter-spacing: 0.32px; text-transform: uppercase; }
+.resilience .summary dd { font-size: 1.25rem; line-height: 1.75rem; }
 
-@media (max-width: 1024px) {
+@media (max-width: 1056px) {
   .layout { grid-template-columns: 1fr; }
 }
 
