@@ -141,6 +141,31 @@ steady_state:
 Las dos topologías del "momento ajá" traen la misma hipótesis (`success_rate >= 0.99`):
 `order-api` la **refuta** (~0.83) y `resilient-order-api` la **cumple** (~1.0).
 
+Además, cada corrida reporta **métricas de resiliencia** estandarizadas: disponibilidad, MTTR,
+tasa de éxito en el peor segundo y en cuánto tiempo se detectó el fallo (apertura del breaker).
+
+## Búsqueda de caos (mini-DST): "encontrá el escenario que te rompe"
+
+En vez de reproducir un escenario que vos definís, ChaosLab **busca solo** el conjunto de fallos que
+refuta tu hipótesis, y lo **minimiza** al más chico que aún la rompe (idea de la _Deterministic
+Simulation Testing_ de FoundationDB/Antithesis/TigerBeetle, a escala educativa):
+
+```bash
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar search examples/resilient-order-api.yaml
+```
+
+```
+veredicto: hipótesis REFUTADA — escenario mínimo hallado
+  semilla: 0
+  fallos (1): crash orders-queue
+  éxito en el peor segundo: 0.0%
+```
+
+El diseño resiliente cubre las réplicas `api` con un CircuitBreaker, pero la búsqueda descubre que
+la **cola y la base de datos son puntos únicos de fallo** (SPOF): un solo crash de `orders-queue`
+tira el SLO. Como todo es determinista, el contraejemplo es **reproducible** (misma semilla +
+mismos fallos). Sale con **código 1** si halla un contraejemplo (gate de resiliencia para CI).
+
 ## Docker
 
 ```bash

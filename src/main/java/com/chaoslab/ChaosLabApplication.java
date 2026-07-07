@@ -15,8 +15,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ChaosLabApplication {
 
     public static void main(String[] args) {
-        if (args.length > 0 && "run".equals(args[0])) {
-            // Modo CLI batch: sin servidor web; propaga el código de salida del comando.
+        if (args.length > 0) {
+            // Modo CLI batch (run/search): sin servidor web; propaga el código de salida del comando.
             SpringApplication app = new SpringApplication(ChaosLabApplication.class);
             app.setWebApplicationType(WebApplicationType.NONE);
             System.exit(SpringApplication.exit(app.run(args)));
