@@ -4,6 +4,7 @@ import com.chaoslab.domain.engine.FaultInjected;
 import com.chaoslab.domain.engine.SimulationEngine;
 import com.chaoslab.domain.engine.SimulationLimits;
 import com.chaoslab.domain.fault.Fault;
+import com.chaoslab.domain.hypothesis.HypothesisReport;
 import com.chaoslab.domain.metrics.MetricsCollector;
 import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.domain.topology.TopologyGraph;
@@ -36,9 +37,9 @@ public final class RunSimulationUseCase {
      * @param topologyFile archivo YAML
      * @param seedOverride semilla que sobrescribe la del archivo (opcional)
      * @param extraFaults  fallos adicionales inyectados desde fuera del YAML (p. ej. la CLI)
-     * @return el reporte final
+     * @return el reporte final y el veredicto de su hipótesis de estado estable
      */
-    public SimulationReport run(Path topologyFile, OptionalLong seedOverride, List<Fault> extraFaults) {
+    public ScenarioResult run(Path topologyFile, OptionalLong seedOverride, List<Fault> extraFaults) {
         LoadedScenario scenario = loader.load(topologyFile);
         long seed = seedOverride.isPresent() ? seedOverride.getAsLong() : scenario.seed();
 
@@ -53,7 +54,9 @@ public final class RunSimulationUseCase {
         long generated = generator.scheduleArrivals(
             engine, scenario.workload(), topology.entryPointId(), limits.maxRequests());
 
-        return engine.run(seed, generated);
+        SimulationReport report = engine.run(seed, generated);
+        HypothesisReport hypothesis = scenario.hypothesis().evaluate(report);
+        return new ScenarioResult(report, hypothesis);
     }
 
     private List<Fault> mergeFaults(List<Fault> fromScenario, List<Fault> extra) {

@@ -2,6 +2,10 @@ package com.chaoslab.infrastructure.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.chaoslab.domain.hypothesis.Comparison;
+import com.chaoslab.domain.hypothesis.HypothesisReport;
+import com.chaoslab.domain.hypothesis.InvariantResult;
+import com.chaoslab.domain.hypothesis.Metric;
 import com.chaoslab.domain.metrics.ComponentReport;
 import com.chaoslab.domain.metrics.LatencyStats;
 import com.chaoslab.domain.metrics.SimulationReport;
@@ -32,5 +36,22 @@ class ConsoleReportPrinterTest {
         assertThat(text).contains("SERVICE");
         assertThat(text).contains("fallos por causa");
         assertThat(text).contains("CAPACITY=5");
+    }
+
+    @Test
+    void formatsAViolatedHypothesisAsFalla() {
+        HypothesisReport hypothesis = new HypothesisReport(true, false, List.of(
+            new InvariantResult(Metric.SUCCESS_RATE, Comparison.GTE, 0.99, 0.831, false)));
+
+        String text = new ConsoleReportPrinter().formatHypothesis(hypothesis);
+
+        assertThat(text).contains("FALLA");
+        assertThat(text).contains("success_rate >= 0.990");
+        assertThat(text).contains("0.831");
+    }
+
+    @Test
+    void anUndeclaredHypothesisPrintsNothing() {
+        assertThat(new ConsoleReportPrinter().formatHypothesis(HypothesisReport.notDeclared())).isEmpty();
     }
 }

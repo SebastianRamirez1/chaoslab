@@ -119,6 +119,28 @@ java -jar target/chaoslab-0.1.0-SNAPSHOT.jar run examples/resilient-order-api.ya
 Con el breaker, el balanceador deja de enrutar a la réplica caída y el sistema **degrada en vez
 de colapsar**. Mismo `seed` → mismo resultado siempre (determinismo).
 
+## Hipótesis de estado estable (el oráculo)
+
+El principio formal de Chaos Engineering: declarás qué es "operación normal" con invariantes
+medibles (SLOs) y el experimento intenta **refutarlos**. En ChaosLab se declaran en el YAML y la
+corrida devuelve un veredicto **PASA/FALLA**:
+
+```yaml
+steady_state:
+  - { metric: success_rate,   comparison: ">=", threshold: 0.99 }
+  - { metric: p95_latency_ms, comparison: "<=", threshold: 400 }
+```
+
+- **Métricas:** `success_rate`, `p50/p95/p99/max_latency_ms`,
+  `completed/failed/generated_requests`.
+- **Comparadores:** `>=`, `<=`, `>`, `<`, `==` (o `gte`, `lte`, `gt`, `lt`, `eq`).
+- En el **dashboard** aparece un badge verde/rojo con el desglose por invariante.
+- En la **CLI**, si la hipótesis se refuta el proceso sale con **código 1** (listo para un gate de
+  CI: la resiliencia se vuelve un test que rompe el build si regresa).
+
+Las dos topologías del "momento ajá" traen la misma hipótesis (`success_rate >= 0.99`):
+`order-api` la **refuta** (~0.83) y `resilient-order-api` la **cumple** (~1.0).
+
 ## Docker
 
 ```bash
