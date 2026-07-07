@@ -201,6 +201,7 @@ WebSocket solo enviaría datos ya calculados. Chart.js va **empaquetado localmen
 - **Java 21 LTS** + **Spring Boot 3.5** (solo en las capas externas; el dominio es puro)
 - Motor de **eventos discretos** propio · **SnakeYAML** (`SafeConstructor`) · **Picocli** (CLI)
 - Frontend HTML/CSS/JS vanilla + **Chart.js** (vendorizado) · grafo SVG + replay en el cliente
+- UI con el lenguaje de **IBM Carbon Design System** (tema Gray 100): tokens, IBM Plex, foco accesible
 - **JUnit 5 + AssertJ** · **Checkstyle** · **SpotBugs** · **JaCoCo** · **ArchUnit** · **OWASP Dependency-Check**
 - **GitHub Actions** (CI) · **Docker** (entorno reproducible)
 
