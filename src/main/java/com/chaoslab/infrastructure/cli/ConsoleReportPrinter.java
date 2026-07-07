@@ -1,12 +1,19 @@
 package com.chaoslab.infrastructure.cli;
 
+import com.chaoslab.domain.fault.CrashFault;
+import com.chaoslab.domain.fault.Fault;
+import com.chaoslab.domain.fault.LatencyFault;
+import com.chaoslab.domain.fault.NetworkPartition;
 import com.chaoslab.domain.hypothesis.HypothesisReport;
 import com.chaoslab.domain.hypothesis.InvariantResult;
 import com.chaoslab.domain.metrics.ComponentReport;
 import com.chaoslab.domain.metrics.LatencyStats;
 import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
+import com.chaoslab.domain.search.ChaosSearchResult;
+import com.chaoslab.domain.search.Counterexample;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /** Presenta un {@link SimulationReport} en consola, en texto legible. */
 public final class ConsoleReportPrinter {
@@ -34,6 +41,50 @@ public final class ConsoleReportPrinter {
                 m.timeToFirstBreakerTripMillis() / 1000.0));
         }
         return out.toString();
+    }
+
+    /** Imprime el resultado de una búsqueda de caos (mini-DST). */
+    public void printSearch(ChaosSearchResult result) {
+        System.out.print(formatSearch(result));
+    }
+
+    /** Formatea el resultado de la búsqueda como texto legible. */
+    public String formatSearch(ChaosSearchResult result) {
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%n=== Búsqueda de caos (mini-DST) ===%n"));
+        out.append(String.format(Locale.ROOT, "escenarios evaluados: %d%n", result.scenariosEvaluated()));
+        if (!result.refuted()) {
+            out.append(String.format(Locale.ROOT,
+                "veredicto: la hipótesis RESISTIÓ todos los escenarios probados (no se halló contraejemplo)%n"));
+            return out.toString();
+        }
+        Counterexample ce = result.minimal();
+        out.append(String.format(Locale.ROOT,
+            "veredicto: hipótesis REFUTADA — escenario mínimo hallado%n"));
+        out.append(String.format(Locale.ROOT, "  semilla: %d%n", ce.seed()));
+        out.append(String.format(Locale.ROOT, "  fallos (%d): %s%n",
+            ce.faultCount(), describeFaults(ce)));
+        out.append(String.format(Locale.ROOT, "  éxito en el peor segundo: %.1f%%%n",
+            ce.worstWindowSuccessRate() * 100.0));
+        for (InvariantResult r : ce.hypothesis().results()) {
+            out.append(String.format(Locale.ROOT, "  [%s] %s %s %s (observado %s)%n",
+                r.satisfied() ? "OK" : "X", r.metric().key(), r.comparison().symbol(),
+                trim(r.threshold()), trim(r.actual())));
+        }
+        return out.toString();
+    }
+
+    private static String describeFaults(Counterexample ce) {
+        return ce.faults().stream().map(ConsoleReportPrinter::describeFault).collect(Collectors.joining(", "));
+    }
+
+    /** Descripción corta de un fallo para el reporte de búsqueda. */
+    private static String describeFault(Fault fault) {
+        return switch (fault) {
+            case CrashFault crash -> "crash " + crash.targetId();
+            case LatencyFault latency -> "latency " + latency.targetId() + " +" + latency.extraMillis() + "ms";
+            case NetworkPartition partition -> "partition " + partition.targets();
+        };
     }
 
     /** Imprime el veredicto de la hipótesis de estado estable (si fue declarada). */
