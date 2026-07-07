@@ -45,6 +45,7 @@ public final class RunCommand implements Callable<Integer> {
             }
             ScenarioResult result = useCase.run(topologyFile, override, faults);
             printer.print(result.report());
+            printer.printResilience(result.resilience());
             printer.printHypothesis(result.hypothesis());
             // Exit code 1 = la hipótesis de estado estable fue refutada (falla el build en CI).
             return result.hypothesis().satisfied() ? 0 : 1;

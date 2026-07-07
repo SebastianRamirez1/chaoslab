@@ -6,6 +6,7 @@ import com.chaoslab.domain.engine.SimulationLimits;
 import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.hypothesis.HypothesisReport;
 import com.chaoslab.domain.metrics.MetricsCollector;
+import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.domain.topology.TopologyGraph;
 import com.chaoslab.domain.workload.PoissonWorkloadGenerator;
@@ -56,7 +57,8 @@ public final class RunSimulationUseCase {
 
         SimulationReport report = engine.run(seed, generated);
         HypothesisReport hypothesis = scenario.hypothesis().evaluate(report);
-        return new ScenarioResult(report, hypothesis);
+        ResilienceMetrics resilience = ResilienceMetrics.from(report.timeline());
+        return new ScenarioResult(report, hypothesis, resilience);
     }
 
     private List<Fault> mergeFaults(List<Fault> fromScenario, List<Fault> extra) {
