@@ -1,7 +1,8 @@
 'use strict';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const HEALTH_COLOR = { UP: '#34d399', DEGRADED: '#fbbf24', DOWN: '#f87171' };
+// Colores de estado = support tokens de Carbon (Gray 100).
+const HEALTH_COLOR = { UP: '#42be65', DEGRADED: '#f1c21b', DOWN: '#fa4d56' };
 const NODE_RADIUS = 22;
 
 let requestsChart = null;
@@ -115,8 +116,8 @@ function renderGraph(view) {
     const circle = document.createElementNS(SVG_NS, 'circle');
     circle.setAttribute('cx', p.x); circle.setAttribute('cy', p.y);
     circle.setAttribute('r', NODE_RADIUS);
-    circle.setAttribute('fill', '#4b5563');
-    circle.setAttribute('stroke', '#0d1218');
+    circle.setAttribute('fill', '#6f6f6f');
+    circle.setAttribute('stroke', '#161616');
     circle.setAttribute('stroke-width', '2');
     svg.appendChild(circle);
     nodeEls[n.id] = circle;
@@ -138,7 +139,7 @@ function renderGraph(view) {
 }
 
 function setHealth(id, health) {
-  if (nodeEls[id]) { nodeEls[id].setAttribute('fill', HEALTH_COLOR[health] || '#4b5563'); }
+  if (nodeEls[id]) { nodeEls[id].setAttribute('fill', HEALTH_COLOR[health] || '#6f6f6f'); }
 }
 
 /** Marca una arista como "circuito abierto" (rojo punteado) o normal.
@@ -146,7 +147,7 @@ function setHealth(id, health) {
 function setEdgeOpen(from, to, open) {
   const el = edgeEls[edgeKey(from, to)];
   if (!el) { return; }
-  el.style.stroke = open ? '#f87171' : '';
+  el.style.stroke = open ? '#fa4d56' : '';
   el.style.strokeWidth = open ? '2.5' : '';
   el.style.strokeDasharray = open ? '6 4' : '';
 }
@@ -159,10 +160,10 @@ function makeChart(canvasId, datasets) {
       animation: false,
       responsive: true,
       scales: {
-        x: { ticks: { color: '#9aa7b4', maxTicksLimit: 8 }, grid: { color: '#2a3543' } },
-        y: { beginAtZero: true, ticks: { color: '#9aa7b4' }, grid: { color: '#2a3543' } }
+        x: { ticks: { color: '#8d8d8d', maxTicksLimit: 8 }, grid: { color: '#393939' } },
+        y: { beginAtZero: true, ticks: { color: '#8d8d8d' }, grid: { color: '#393939' } }
       },
-      plugins: { legend: { labels: { color: '#e6edf3' } } }
+      plugins: { legend: { labels: { color: '#f4f4f4' } } }
     }
   });
 }
@@ -173,11 +174,11 @@ function initCharts() {
     return;
   }
   requestsChart = makeChart('chart-requests', [
-    { label: 'Completados', data: [], borderColor: '#34d399', tension: 0.2, pointRadius: 0 },
-    { label: 'Fallidos', data: [], borderColor: '#f87171', tension: 0.2, pointRadius: 0 }
+    { label: 'Completados', data: [], borderColor: '#42be65', tension: 0.2, pointRadius: 0 },
+    { label: 'Fallidos', data: [], borderColor: '#fa4d56', tension: 0.2, pointRadius: 0 }
   ]);
   latencyChart = makeChart('chart-latency', [
-    { label: 'Latencia p95 (ms)', data: [], borderColor: '#2dd4bf', tension: 0.2, pointRadius: 0 }
+    { label: 'Latencia p95 (ms)', data: [], borderColor: '#4589ff', tension: 0.2, pointRadius: 0 }
   ]);
 }
 
