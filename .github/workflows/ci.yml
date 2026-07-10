@@ -38,6 +38,8 @@ jobs:
           cache: maven
       - name: Verify (tests + SpotBugs + JaCoCo gate)
         run: mvn -B -ntp verify
+      - name: Gate de resiliencia (caos en CI)
+        run: java -jar target/chaoslab-0.1.0-SNAPSHOT.jar check scenarios/*.yaml
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
