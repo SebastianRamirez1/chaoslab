@@ -117,6 +117,28 @@ la **cola y la base de datos son puntos únicos de fallo** (SPOF): un solo crash
 tira el SLO. Como todo es determinista, el contraejemplo es **reproducible**. Sale con **código 1**
 si halla un contraejemplo (gate de resiliencia para CI). Opciones: `--seeds N`, `--budget N`.
 
+## Gate de resiliencia en CI (chaos continuo)
+
+Los patrones de resiliencia se vuelven un **test que rompe el build si regresan**. El comando
+`check` corre un conjunto de escenarios —cada uno con su hipótesis— y sale con **código 1** si
+alguno deja de sostenerla:
+
+```bash
+java -jar target/chaoslab-0.1.0-SNAPSHOT.jar check scenarios/*.yaml
+```
+
+```
+=== Gate de resiliencia ===
+  [PASA         ] circuit-breaker.yaml
+  [PASA         ] retry.yaml
+
+veredicto: 2/2 escenarios sostuvieron su hipótesis
+```
+
+Los escenarios de [`scenarios/`](scenarios) fijan garantías concretas (p. ej. *"el CircuitBreaker
+mantiene el éxito ≥ 98 % pese a una réplica caída"*). Corren en CI en cada push/PR, y también como
+test de `mvn verify`: si un cambio rompe el breaker o el enrutado del retry, el build falla.
+
 ## Uso
 
 ### CLI
@@ -255,9 +277,10 @@ deserialización de tipos arbitrarios (`SafeConstructor`). Nunca se interpreta c
 - ✅ Hipótesis de estado estable (SLOs) con veredicto PASA/FALLA.
 - ✅ Métricas de resiliencia estandarizadas (disponibilidad, MTTR, degradación, detección).
 - ✅ Búsqueda de caos determinista (mini-DST) con minimización de escenarios.
+- ✅ Gate de resiliencia en CI (`check`): la resiliencia rompe el build si regresa.
 
-**Backlog:** gate de resiliencia en CI, más patrones (Bulkhead, Rate-Limiter, Retry con jitter),
-más fallos (clock skew, degradación parcial), deploy público, mutation testing (PIT).
+**Backlog:** más patrones (Bulkhead, Rate-Limiter, Retry con jitter), más fallos (clock skew,
+degradación parcial), deploy público, mutation testing (PIT).
 
 ## Licencia
 

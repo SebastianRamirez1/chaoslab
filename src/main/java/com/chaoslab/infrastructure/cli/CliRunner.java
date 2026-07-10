@@ -1,6 +1,7 @@
 package com.chaoslab.infrastructure.cli;
 
 import com.chaoslab.application.ChaosSearchUseCase;
+import com.chaoslab.application.ResilienceCheckUseCase;
 import com.chaoslab.application.RunSimulationUseCase;
 import java.util.Objects;
 import org.springframework.boot.CommandLineRunner;
@@ -17,11 +18,14 @@ public final class CliRunner implements CommandLineRunner, ExitCodeGenerator {
 
     private final RunSimulationUseCase useCase;
     private final ChaosSearchUseCase searchUseCase;
+    private final ResilienceCheckUseCase checkUseCase;
     private int exitCode;
 
-    public CliRunner(RunSimulationUseCase useCase, ChaosSearchUseCase searchUseCase) {
+    public CliRunner(RunSimulationUseCase useCase, ChaosSearchUseCase searchUseCase,
+                     ResilienceCheckUseCase checkUseCase) {
         this.useCase = Objects.requireNonNull(useCase, "useCase");
         this.searchUseCase = Objects.requireNonNull(searchUseCase, "searchUseCase");
+        this.checkUseCase = Objects.requireNonNull(checkUseCase, "checkUseCase");
     }
 
     @Override
@@ -35,7 +39,8 @@ public final class CliRunner implements CommandLineRunner, ExitCodeGenerator {
         ConsoleReportPrinter printer = new ConsoleReportPrinter();
         CommandLine commandLine = new CommandLine(new ChaosLabCommand())
             .addSubcommand("run", new RunCommand(useCase, printer))
-            .addSubcommand("search", new SearchCommand(searchUseCase, printer));
+            .addSubcommand("search", new SearchCommand(searchUseCase, printer))
+            .addSubcommand("check", new CheckCommand(checkUseCase, printer));
         this.exitCode = commandLine.execute(args);
     }
 

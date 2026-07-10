@@ -1,0 +1,27 @@
+# Escenario de regresión de resiliencia (gate de CI).
+# Garantía: con un CircuitBreaker en el balanceador, la caída de una réplica NO debe tirar el SLO.
+# Si un refactor rompe el breaker, este escenario deja de sostener su hipótesis y el build falla.
+name: "regresión: el circuit breaker aísla la réplica caída"
+seed: 7
+
+components:
+  - id: gateway
+    type: LoadBalancer
+    resilience:
+      circuit_breaker: { threshold: 5, cooldown_ms: 2000 }
+
+  - { id: api-1, type: Service, capacity: 100, base_latency_ms: 20 }
+  - { id: api-2, type: Service, capacity: 100, base_latency_ms: 20 }
+
+connections:
+  - { from: gateway, to: [api-1, api-2] }
+
+workload:
+  requests_per_second: 100
+  duration_seconds: 15
+
+faults:
+  - { type: crash, target: api-1, at_second: 3, duration_s: 10 }
+
+steady_state:
+  - { metric: success_rate, comparison: ">=", threshold: 0.98 }

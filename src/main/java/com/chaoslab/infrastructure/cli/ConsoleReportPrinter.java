@@ -1,5 +1,6 @@
 package com.chaoslab.infrastructure.cli;
 
+import com.chaoslab.application.CheckOutcome;
 import com.chaoslab.domain.fault.CrashFault;
 import com.chaoslab.domain.fault.Fault;
 import com.chaoslab.domain.fault.LatencyFault;
@@ -12,6 +13,7 @@ import com.chaoslab.domain.metrics.ResilienceMetrics;
 import com.chaoslab.domain.metrics.SimulationReport;
 import com.chaoslab.domain.search.ChaosSearchResult;
 import com.chaoslab.domain.search.Counterexample;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -40,6 +42,26 @@ public final class ConsoleReportPrinter {
             out.append(String.format(Locale.ROOT, "  breaker abrió por primera vez en t=%.1fs%n",
                 m.timeToFirstBreakerTripMillis() / 1000.0));
         }
+        return out.toString();
+    }
+
+    /** Imprime el resultado del gate de resiliencia y devuelve si todos los escenarios pasaron. */
+    public boolean printCheck(List<CheckOutcome> outcomes) {
+        System.out.print(formatCheck(outcomes));
+        return outcomes.stream().allMatch(CheckOutcome::passed);
+    }
+
+    /** Formatea el resultado del gate de resiliencia como texto legible. */
+    public String formatCheck(List<CheckOutcome> outcomes) {
+        StringBuilder out = new StringBuilder(256);
+        out.append(String.format(Locale.ROOT, "%n=== Gate de resiliencia ===%n"));
+        long passed = outcomes.stream().filter(CheckOutcome::passed).count();
+        for (CheckOutcome o : outcomes) {
+            String label = !o.declared() ? "SIN HIPÓTESIS" : (o.satisfied() ? "PASA" : "FALLA");
+            out.append(String.format(Locale.ROOT, "  [%-13s] %s%n", label, o.scenario()));
+        }
+        out.append(String.format(Locale.ROOT, "%nveredicto: %d/%d escenarios sostuvieron su hipótesis%n",
+            passed, outcomes.size()));
         return out.toString();
     }
 

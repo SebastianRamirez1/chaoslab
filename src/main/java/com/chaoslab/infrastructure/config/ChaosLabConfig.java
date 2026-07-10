@@ -1,6 +1,7 @@
 package com.chaoslab.infrastructure.config;
 
 import com.chaoslab.application.ChaosSearchUseCase;
+import com.chaoslab.application.ResilienceCheckUseCase;
 import com.chaoslab.application.RunSimulationUseCase;
 import com.chaoslab.application.TopologyLoader;
 import com.chaoslab.domain.engine.SimulationLimits;
@@ -33,5 +34,10 @@ public class ChaosLabConfig {
     @Bean
     public ChaosSearchUseCase chaosSearchUseCase(TopologyLoader topologyLoader, SimulationLimits simulationLimits) {
         return new ChaosSearchUseCase(topologyLoader, simulationLimits);
+    }
+
+    @Bean
+    public ResilienceCheckUseCase resilienceCheckUseCase(RunSimulationUseCase runSimulationUseCase) {
+        return new ResilienceCheckUseCase(runSimulationUseCase);
     }
 }
